@@ -26,7 +26,8 @@ def multiply(a, b):
     return a * b
 
 def divide(a, b):
-    # Bug: no zero division check
+    if b == 0:
+        raise ValueError("Cannot divide by zero")
     return a / b
 
 def power(a, b):
@@ -110,9 +111,13 @@ def parse_args(args):
     a = float(args[2])
     b = float(args[3])
 
-    result = calculate(op, a, b)
+    try:
+        result = calculate(op, a, b)
+    except ValueError as e:
+        print(f"Error: {e}")
+        sys.exit(1)
 
-    # Save to history
+    # Save to history — only reached on success
     entry = {"op": op, "a": a, "b": b, "result": result}
     history = load_history()
     history.append(entry)
