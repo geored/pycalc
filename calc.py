@@ -91,8 +91,15 @@ def parse_args(args):
             return None
         subcmd = args[2]
         if subcmd == "store":
-            # Bug: no validation of args[3]
-            memory_store(float(args[3]))
+            if len(args) < 4:
+                print("Error: 'mem store' requires a numeric value")
+                sys.exit(1)
+            try:
+                value = float(args[3])
+            except ValueError:
+                print(f"Error: Invalid number: '{args[3]}'")
+                sys.exit(1)
+            memory_store(value)
             print(f"Stored: {args[3]}")
         elif subcmd == "recall":
             print(f"Memory: {memory_recall()}")
@@ -108,9 +115,16 @@ def parse_args(args):
         return None
 
     op = args[1]
-    # Bug: no validation that a and b are numbers
-    a = float(args[2])
-    b = float(args[3])
+    try:
+        a = float(args[2])
+    except ValueError:
+        print(f"Error: Invalid number: '{args[2]}'")
+        sys.exit(1)
+    try:
+        b = float(args[3])
+    except ValueError:
+        print(f"Error: Invalid number: '{args[3]}'")
+        sys.exit(1)
 
     try:
         result = calculate(op, a, b)
@@ -118,7 +132,7 @@ def parse_args(args):
         print(f"Error: {e}")
         sys.exit(1)
 
-    # Save to history — only reached on successful calculation
+    # Save to history -- only reached on successful calculation
     entry = {"op": op, "a": a, "b": b, "result": result}
     history = load_history()
     history.append(entry)
