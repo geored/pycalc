@@ -140,3 +140,99 @@ def test_valid_ops_unaffected_by_guard():
     assert calculate("mul", 3, 7) == 21
     assert calculate("div", 15, 3) == 5.0
     assert calculate("pow", 2, 8) == 256.0
+
+
+# --- B6: Non-numeric input causes unhandled ValueError ---
+
+def test_non_numeric_first_arg_friendly_message(tmp_path, monkeypatch):
+    """CLI must print a friendly error message (no traceback) when first arg is non-numeric."""
+    monkeypatch.chdir(tmp_path)
+    result = subprocess.run(
+        [sys.executable, "/workspace/calc.py", "add", "foo", "3"],
+        capture_output=True, text=True
+    )
+    assert result.returncode != 0, "Process must exit non-zero on non-numeric input"
+    assert "Error" in result.stdout or "Error" in result.stderr, (
+        "A user-friendly error message must appear"
+    )
+    assert "Traceback" not in result.stderr, "Raw traceback must not reach the user"
+    assert "ValueError" not in result.stderr, "Raw ValueError must not be exposed"
+    assert "foo" in result.stdout or "foo" in result.stderr, (
+        "The invalid value should appear in the error message"
+    )
+
+def test_non_numeric_second_arg_friendly_message(tmp_path, monkeypatch):
+    """CLI must print a friendly error message when second arg is non-numeric."""
+    monkeypatch.chdir(tmp_path)
+    result = subprocess.run(
+        [sys.executable, "/workspace/calc.py", "add", "3", "bar"],
+        capture_output=True, text=True
+    )
+    assert result.returncode != 0, "Process must exit non-zero on non-numeric input"
+    assert "Error" in result.stdout or "Error" in result.stderr
+    assert "Traceback" not in result.stderr
+    assert "ValueError" not in result.stderr
+    assert "bar" in result.stdout or "bar" in result.stderr
+
+def test_non_numeric_no_history_entry(tmp_path, monkeypatch):
+    """A failed parse due to non-numeric input must NOT write a history entry."""
+    monkeypatch.chdir(tmp_path)
+    save_history([])
+    subprocess.run(
+        [sys.executable, "/workspace/calc.py", "add", "foo", "3"],
+        capture_output=True, text=True
+    )
+    history = load_history()
+    assert history == [], "History must remain empty after a non-numeric input error"
+
+def test_both_args_non_numeric(tmp_path, monkeypatch):
+    """CLI must handle both arguments being non-numeric gracefully."""
+    monkeypatch.chdir(tmp_path)
+    result = subprocess.run(
+        [sys.executable, "/workspace/calc.py", "mul", "abc", "xyz"],
+        capture_output=True, text=True
+    )
+    assert result.returncode != 0
+    assert "Error" in result.stdout or "Error" in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+# --- B5: mem store missing value causes unhandled IndexError ---
+
+def test_mem_store_missing_value_friendly_message(tmp_path, monkeypatch):
+    """CLI must print a friendly error when 'mem store' is called without a value."""
+    monkeypatch.chdir(tmp_path)
+    result = subprocess.run(
+        [sys.executable, "/workspace/calc.py", "mem", "store"],
+        capture_output=True, text=True
+    )
+    assert result.returncode != 0, "Process must exit non-zero when mem store value is missing"
+    assert "Error" in result.stdout or "Error" in result.stderr, (
+        "A user-friendly error message must appear"
+    )
+    assert "Traceback" not in result.stderr, "Raw traceback must not reach the user"
+    assert "IndexError" not in result.stderr, "IndexError must not be exposed to the user"
+
+def test_mem_store_non_numeric_value_friendly_message(tmp_path, monkeypatch):
+    """CLI must print a friendly error when 'mem store' is called with a non-numeric value."""
+    monkeypatch.chdir(tmp_path)
+    result = subprocess.run(
+        [sys.executable, "/workspace/calc.py", "mem", "store", "notanumber"],
+        capture_output=True, text=True
+    )
+    assert result.returncode != 0, "Process must exit non-zero when mem store value is non-numeric"
+    assert "Error" in result.stdout or "Error" in result.stderr
+    assert "Traceback" not in result.stderr
+    assert "ValueError" not in result.stderr
+
+def test_mem_store_valid_value_still_works(tmp_path, monkeypatch):
+    """mem store must still work correctly after validation is added."""
+    from calc import memory_clear, memory_recall
+    monkeypatch.chdir(tmp_path)
+    memory_clear()
+    result = subprocess.run(
+        [sys.executable, "/workspace/calc.py", "mem", "store", "42"],
+        capture_output=True, text=True
+    )
+    assert result.returncode == 0, "mem store with a valid value must exit 0"
+    assert "Stored" in result.stdout, "Success message must be printed"
