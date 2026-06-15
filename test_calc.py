@@ -536,3 +536,47 @@ def test_print_usage_mentions_operations(capsys):
     print_usage()
     captured = capsys.readouterr()
     assert any(op in captured.out for op in ["add", "sub", "mul", "div", "pow"])
+
+
+# ---------------------------------------------------------------------------
+# 9. Corrupt history file — graceful recovery (Issue #5)
+# ---------------------------------------------------------------------------
+
+def test_load_history_corrupt_file(tmp_path, monkeypatch):
+    """load_history() returns [] gracefully when the history file is corrupt."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "calc_history.json").write_text("this is not valid json{{{{")
+    result = load_history()
+    assert result == []
+
+def test_load_history_empty_file(tmp_path, monkeypatch):
+    """load_history() returns [] gracefully when the history file is empty."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "calc_history.json").write_text("")
+    result = load_history()
+    assert result == []
+
+def test_load_history_partial_json(tmp_path, monkeypatch):
+    """load_history() returns [] when the history file is truncated mid-write."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "calc_history.json").write_text('[{"op": "add"')
+    result = load_history()
+    assert result == []
+
+def test_load_history_corrupt_emits_warning_to_stderr(tmp_path, monkeypatch, capsys):
+    """load_history() emits a warning to stderr when the history file is corrupt."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "calc_history.json").write_text("not json at all")
+    load_history()
+    captured = capsys.readouterr()
+    assert "Warning" in captured.err or "corrupt" in captured.err
+
+def test_load_history_corrupt_does_not_crash_program(tmp_path, monkeypatch):
+    """A corrupt history file must not raise any exception."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "calc_history.json").write_text("{bad json}")
+    try:
+        result = load_history()
+    except Exception as e:
+        pytest.fail(f"load_history() raised {type(e).__name__} on corrupt file: {e}")
+    assert result == []

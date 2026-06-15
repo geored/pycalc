@@ -9,7 +9,11 @@ HISTORY_FILE = "calc_history.json"
 def load_history():
     if os.path.exists(HISTORY_FILE):
         with open(HISTORY_FILE) as f:
-            return json.load(f)
+            try:
+                return json.load(f)
+            except json.JSONDecodeError:
+                print(f"Warning: history file is corrupt; starting fresh.", file=sys.stderr)
+                return []
     return []
 
 def save_history(history):
