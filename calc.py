@@ -41,8 +41,9 @@ def calculate(op, a, b):
         "div": divide,
         "pow": power,
     }
-    # Bug: no validation of op
-    func = ops[op]
+    func = ops.get(op)
+    if func is None:
+        raise ValueError(f"Unknown operation: {op}")
     result = func(a, b)
     return result
 
