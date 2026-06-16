@@ -1803,3 +1803,71 @@ def test_pow_huge_int_no_history_entry(tmp_path, monkeypatch):
         capture_output=True, text=True,
     )
     assert load_history() == []
+
+
+# ---------------------------------------------------------------------------
+# 25. format_result() — int input handling + OverflowError → ValueError (#61)
+# ---------------------------------------------------------------------------
+
+def test_format_result_int_small():
+    """format_result(5) — small int — must return '5' without error."""
+    assert format_result(5) == "5"
+
+
+def test_format_result_int_zero():
+    """format_result(0) — int zero — must return '0' without error."""
+    assert format_result(0) == "0"
+
+
+def test_format_result_int_negative():
+    """format_result(-3) — negative int — must return '-3' without error."""
+    assert format_result(-3) == "-3"
+
+
+def test_format_result_int_large_but_representable():
+    """format_result(2**53) — large int still representable as float — must succeed."""
+    result = format_result(2**53)
+    assert isinstance(result, str)
+    assert len(result) > 0
+
+
+def test_format_result_huge_int_raises_value_error():
+    """format_result(2**10000) — too large for float — must raise ValueError, not OverflowError."""
+    with pytest.raises(ValueError, match="[Tt]oo large|finite|[Oo]verflow"):
+        format_result(2**10000)
+
+
+def test_format_result_huge_int_not_overflow_error():
+    """format_result(2**10000) must NOT raise a bare OverflowError (must be converted to ValueError)."""
+    try:
+        format_result(2**10000)
+    except ValueError:
+        pass  # expected — correct behaviour
+    except OverflowError:
+        pytest.fail(
+            "format_result(2**10000) raised OverflowError; "
+            "it must be caught and re-raised as ValueError"
+        )
+
+
+def test_format_result_type_annotation_accepts_int():
+    """format_result() with int input must not raise TypeError or AttributeError."""
+    try:
+        format_result(42)
+    except (TypeError, AttributeError) as e:
+        pytest.fail(f"format_result(42) raised {type(e).__name__}: {e}")
+
+
+def test_format_result_int_result_matches_float_result():
+    """format_result(5) and format_result(5.0) must produce the same string."""
+    assert format_result(5) == format_result(5.0)
+
+
+def test_format_result_existing_behaviour_unchanged_after_int_fix():
+    """Regression: all previously passing format_result tests must still pass."""
+    assert format_result(5.0) == "5"
+    assert format_result(0.0) == "0"
+    assert format_result(-3.0) == "-3"
+    assert format_result(0.1 + 0.2) == "0.3"
+    assert format_result(256.0) == "256"
+    assert format_result(1 / 3) == "0.3333333333"

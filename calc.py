@@ -85,7 +85,7 @@ def calculate(op: str, a: float, b: float) -> float:
         raise ValueError(f"Unknown operation: {op}")
     return func(a, b)
 
-def format_result(result: float) -> str:
+def format_result(result: int | float) -> str:
     # Format choice (Option A — deliberately chosen, Issue #29):
     #
     # We use :.10g, which means:
@@ -104,6 +104,10 @@ def format_result(result: float) -> str:
         raise TypeError(
             f"format_result() does not accept complex numbers; got {result!r}"
         )
+    try:
+        result = float(result)
+    except OverflowError:
+        raise ValueError("Result too large to represent as a finite float")
     if not math.isfinite(result):
         raise ValueError(
             f"format_result() requires a finite float; got {result!r} (nan or inf is not allowed)"
