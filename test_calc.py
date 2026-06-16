@@ -1514,3 +1514,99 @@ def test_format_result_valid_float_noise_regression():
 def test_format_result_valid_large_float_regression():
     """Regression: format_result(256.0) must still return '256' after the guard."""
     assert format_result(256.0) == "256"
+
+
+# ---------------------------------------------------------------------------
+# 22. Memory volatility warning — Issue #49
+#     mem store must warn user that memory is session-only.
+#     print_usage() must note memory is not persisted between invocations.
+# ---------------------------------------------------------------------------
+
+def test_mem_store_prints_volatility_warning(tmp_path, monkeypatch, capsys):
+    """'mem store' must print a warning that memory is session-only."""
+    monkeypatch.chdir(tmp_path)
+    parse_args(["calc", "mem", "store", "42"])
+    captured = capsys.readouterr()
+    # The warning must mention session-only or similar wording
+    combined = captured.out.lower()
+    assert "session" in combined or "not persisted" in combined or "lost" in combined, (
+        f"Expected a session-only volatility warning in stdout but got: {captured.out!r}"
+    )
+
+
+def test_mem_store_volatility_warning_is_on_stdout(tmp_path, monkeypatch, capsys):
+    """Volatility warning from 'mem store' must go to stdout (it is informational)."""
+    monkeypatch.chdir(tmp_path)
+    parse_args(["calc", "mem", "store", "42"])
+    captured = capsys.readouterr()
+    combined = captured.out.lower()
+    # Warning must be on stdout, consistent with the "Stored: …" confirmation line
+    assert "session" in combined or "not persisted" in combined or "lost" in combined, (
+        "Volatility warning must appear on stdout, not only stderr"
+    )
+
+
+def test_mem_store_still_prints_stored_confirmation_with_warning(tmp_path, monkeypatch, capsys):
+    """'mem store' must still print 'Stored: 42' alongside the warning (no regression)."""
+    monkeypatch.chdir(tmp_path)
+    parse_args(["calc", "mem", "store", "42"])
+    captured = capsys.readouterr()
+    assert "Stored" in captured.out, (
+        f"'Stored' confirmation line missing from stdout: {captured.out!r}"
+    )
+    assert "42" in captured.out
+
+
+def test_mem_store_volatility_warning_subprocess(tmp_path, monkeypatch):
+    """Subprocess: 'calc mem store 42' must emit the session-only warning on stdout."""
+    monkeypatch.chdir(tmp_path)
+    import subprocess as sp
+    result = sp.run(
+        [sys.executable, "/workspace/calc.py", "mem", "store", "42"],
+        capture_output=True, text=True, cwd=str(tmp_path),
+    )
+    assert result.returncode == 0
+    combined = result.stdout.lower()
+    assert "session" in combined or "not persisted" in combined or "lost" in combined, (
+        f"Expected session-only warning in subprocess stdout but got: {result.stdout!r}"
+    )
+
+
+def test_print_usage_mem_store_mentions_session_only(capsys):
+    """print_usage() must document that 'mem store' memory is session-only / not persisted."""
+    print_usage()
+    captured = capsys.readouterr()
+    combined = captured.out.lower()
+    assert "session" in combined or "not persisted" in combined or "session-only" in combined, (
+        f"print_usage() must note that memory is session-only; output was:\n{captured.out}"
+    )
+
+
+def test_print_usage_mem_store_line_contains_session_note(capsys):
+    """The 'mem store' line in print_usage() specifically must contain the session note."""
+    print_usage()
+    captured = capsys.readouterr()
+    lines = captured.out.splitlines()
+    mem_store_lines = [l for l in lines if "mem store" in l]
+    assert mem_store_lines, "print_usage() must contain a line with 'mem store'"
+    mem_store_line = mem_store_lines[0].lower()
+    assert "session" in mem_store_line or "not persisted" in mem_store_line or "session-only" in mem_store_line, (
+        f"The 'mem store' line must note that memory is session-only; line was: {mem_store_lines[0]!r}"
+    )
+
+
+def test_mem_recall_and_clear_not_affected_by_warning(tmp_path, monkeypatch, capsys):
+    """'mem recall' and 'mem clear' must NOT print the volatility warning."""
+    monkeypatch.chdir(tmp_path)
+    memory_store(42)
+
+    parse_args(["calc", "mem", "recall"])
+    recall_out = capsys.readouterr().out.lower()
+
+    parse_args(["calc", "mem", "clear"])
+    clear_out = capsys.readouterr().out.lower()
+
+    for output, cmd in [(recall_out, "mem recall"), (clear_out, "mem clear")]:
+        assert "session" not in output and "not persisted" not in output, (
+            f"'{cmd}' must not print the session-only warning; got: {output!r}"
+        )

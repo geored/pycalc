@@ -161,6 +161,7 @@ def parse_args(args: list[str]) -> float | None:
                 sys.exit(1)
             memory_store(value)
             print(f"Stored: {args[3]}")
+            print("Note: memory is session-only and will be lost when this process exits.")
         elif subcmd == "recall":
             print(f"Memory: {memory_recall()}")
         elif subcmd == "clear":
@@ -220,7 +221,7 @@ def print_usage() -> None:
     print("  calc history            Show calculation history")
     print("  calc clear              Clear calculation history")
     print("  calc mem                Show current memory value")
-    print("  calc mem store <num>    Store a value in memory")
+    print("  calc mem store <num>    Store a value in memory (session-only, not persisted)")
     print("  calc mem recall         Recall the stored memory value")
     print("  calc mem clear          Reset memory to 0")
     print("  calc help               Show this help message")
