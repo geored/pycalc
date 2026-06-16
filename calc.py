@@ -98,8 +98,11 @@ def parse_args(args: list[str]) -> float | None:
 
     if cmd == "history":
         history = load_history()
-        # Bug: prints raw list, not formatted
-        print(history)
+        if not history:
+            print("No history.")
+        else:
+            for i, r in enumerate(history, 1):
+                print(f"  {i}. {r['op']} {r['a']} {r['b']} = {r['result']}")
         return None
 
     if cmd == "clear":
