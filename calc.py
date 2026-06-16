@@ -48,6 +48,11 @@ def divide(a: float, b: float) -> float:
 def power(a: float, b: float) -> float:
     return a ** b
 
+
+def percentage(a: float, b: float) -> float:
+    if b == 0:
+        raise ValueError("Cannot calculate percentage: denominator is zero")
+    return (a / b) * 100
 def calculate(op: str, a: float, b: float) -> float:
     ops: dict[str, Callable[[float, float], float]] = {
         "add": add,
@@ -55,6 +60,7 @@ def calculate(op: str, a: float, b: float) -> float:
         "mul": multiply,
         "div": divide,
         "pow": power,
+        "pct": percentage,
     }
     func = ops.get(op)
     if func is None:
@@ -136,7 +142,7 @@ def parse_args(args: list[str]) -> float | None:
     # Main calculation: calc <op> <a> <b>
     if len(args) < 4:
         print("Error: need operation and two numbers")
-        print("Usage: calc <add|sub|mul|div|pow> <num1> <num2>")
+        print("Usage: calc <add|sub|mul|div|pow|pct> <num1> <num2>")
         return None
 
     op = args[1]
@@ -170,7 +176,8 @@ def print_usage() -> None:
     print("Usage: calc <command> [arguments]")
     print("")
     print("Arithmetic:")
-    print("  calc <add|sub|mul|div|pow> <num1> <num2>")
+    print("  calc <add|sub|mul|div|pow|pct> <num1> <num2>")
+    print("  calc pct <num1> <num2>       What percent num1 is of num2")
     print("")
     print("Commands:")
     print("  calc history            Show calculation history")
