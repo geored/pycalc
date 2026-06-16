@@ -57,8 +57,11 @@ def calculate(op, a, b):
     return result
 
 def format_result(result):
-    # Bug: doesn't handle float precision (0.1 + 0.2 = 0.30000000000000004)
-    return str(result)
+    # Use :.10g to suppress IEEE 754 floating-point noise while preserving
+    # meaningful precision. Trailing zeros and unnecessary ".0" suffixes are
+    # dropped automatically; scientific notation kicks in for very large/small
+    # numbers. 10 significant figures is sufficient for all practical inputs.
+    return f"{result:.10g}"
 
 # Memory feature: protected by a threading.Lock so concurrent reads/writes
 # are serialised and cannot produce race conditions (fixes B4).
