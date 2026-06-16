@@ -109,7 +109,7 @@ def memory_clear() -> None:
 def parse_args(args: list[str]) -> float | None:
     if len(args) < 2:
         print_usage()
-        return None
+        sys.exit(1)
 
     cmd = args[1]
 

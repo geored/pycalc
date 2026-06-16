@@ -297,9 +297,10 @@ def test_non_numeric_no_history_entry(tmp_path, monkeypatch):
 
 def test_no_args_shows_usage(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
-    result = parse_args(["calc"])
+    with pytest.raises(SystemExit) as exc_info:
+        parse_args(["calc"])
+    assert exc_info.value.code == 1
     captured = capsys.readouterr()
-    assert result is None
     assert "Usage" in captured.out
 
 def test_only_op_no_operands_prints_error(tmp_path, monkeypatch, capsys):
