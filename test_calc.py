@@ -336,11 +336,28 @@ def test_history_command_returns_none(tmp_path, monkeypatch, capsys):
     assert result is None
 
 def test_history_command_prints_output(tmp_path, monkeypatch, capsys):
+    """History output must be human-readable numbered lines, not raw Python repr."""
     monkeypatch.chdir(tmp_path)
     save_history([{"op": "add", "a": 1.0, "b": 2.0, "result": 3.0}])
     parse_args(["calc", "history"])
     captured = capsys.readouterr()
-    assert captured.out.strip() != ""
+    # Must contain the formatted separator and identifiable fields
+    assert "=" in captured.out, "Expected '=' in history output (formatted record)"
+    assert "add" in captured.out, "Expected op name 'add' in history output"
+    assert "3" in captured.out, "Expected result '3' in history output"
+    # Must NOT look like a raw Python list repr
+    assert "[{" not in captured.out, "History output must not be a raw Python list repr"
+
+
+def test_history_command_empty_prints_no_history(tmp_path, monkeypatch, capsys):
+    """When history is empty, 'calc history' must print 'No history.'."""
+    monkeypatch.chdir(tmp_path)
+    # Ensure no history file exists
+    parse_args(["calc", "history"])
+    captured = capsys.readouterr()
+    assert "No history." in captured.out, (
+        f"Expected 'No history.' but got: {captured.out!r}"
+    )
 
 def test_clear_command_prints_confirmation(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
