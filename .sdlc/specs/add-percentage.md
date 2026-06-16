@@ -12,7 +12,7 @@ Add a percentage calculation operation to the calculator. Users should be able t
 
 ## Acceptance Criteria
 - [ ] python calc.py pct 25 200 prints "12.5"
-- [ ] python calc.py pct 50 100 prints "50.0"
+- [ ] python calc.py pct 50 100 prints "50"
 - [ ] python calc.py pct 10 0 prints an error message and exits non-zero
 - [ ] python calc.py help shows pct in the operations list
 - [ ] Calculation is saved to history
