@@ -158,7 +158,7 @@ def parse_args(args: list[str]) -> float | None:
     if len(args) < 4:
         print("Error: need operation and two numbers")
         print("Usage: calc <add|sub|mul|div|pow|pct> <num1> <num2>")
-        return None
+        sys.exit(1)
 
     op = args[1]
     try:
