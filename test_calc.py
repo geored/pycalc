@@ -1445,3 +1445,72 @@ def test_save_history_warning_goes_to_stderr_not_stdout(tmp_path, monkeypatch, c
         "Warning must go to stderr, not stdout"
     )
     assert "Warning" in captured.err
+
+
+# ---------------------------------------------------------------------------
+# 21. format_result() — input validation: complex and non-finite floats (#48)
+# ---------------------------------------------------------------------------
+
+def test_format_result_complex_raises_type_error():
+    """format_result() must raise TypeError when given a complex number."""
+    with pytest.raises(TypeError):
+        format_result(complex(0, 1))
+
+
+def test_format_result_complex_nonzero_real_raises_type_error():
+    """format_result() must raise TypeError for complex numbers with a non-zero real part."""
+    with pytest.raises(TypeError):
+        format_result(complex(3, 4))
+
+
+def test_format_result_nan_raises_value_error():
+    """format_result() must raise ValueError for float('nan')."""
+    with pytest.raises(ValueError):
+        format_result(float('nan'))
+
+
+def test_format_result_inf_raises_value_error():
+    """format_result() must raise ValueError for float('inf')."""
+    with pytest.raises(ValueError):
+        format_result(float('inf'))
+
+
+def test_format_result_negative_inf_raises_value_error():
+    """format_result() must raise ValueError for float('-inf')."""
+    with pytest.raises(ValueError):
+        format_result(float('-inf'))
+
+
+def test_format_result_complex_error_message_is_readable():
+    """TypeError from format_result() on complex input must include a user-readable message."""
+    with pytest.raises(TypeError, match="complex"):
+        format_result(complex(1, 2))
+
+
+def test_format_result_nan_error_message_is_readable():
+    """ValueError from format_result() on nan must include a user-readable message."""
+    with pytest.raises(ValueError, match="[Nn]aN|nan|finite|not a number"):
+        format_result(float('nan'))
+
+
+def test_format_result_inf_error_message_is_readable():
+    """ValueError from format_result() on inf must include a user-readable message."""
+    with pytest.raises(ValueError, match="[Ii]nf|finite"):
+        format_result(float('inf'))
+
+
+# Regression: valid inputs must continue to work correctly after the guard is added
+
+def test_format_result_valid_integer_float_regression():
+    """Regression: format_result(5.0) must still return '5' after the guard."""
+    assert format_result(5.0) == "5"
+
+
+def test_format_result_valid_float_noise_regression():
+    """Regression: 0.1 + 0.2 must still format as '0.3' after the guard."""
+    assert format_result(0.1 + 0.2) == "0.3"
+
+
+def test_format_result_valid_large_float_regression():
+    """Regression: format_result(256.0) must still return '256' after the guard."""
+    assert format_result(256.0) == "256"

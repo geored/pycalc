@@ -88,6 +88,15 @@ def format_result(result: float) -> str:
     #
     # Do NOT change this to :.10f or str() — both would reintroduce noise or
     # always show trailing zeros, breaking the noise-suppression guarantee.
+    import math
+    if isinstance(result, complex):
+        raise TypeError(
+            f"format_result() does not accept complex numbers; got {result!r}"
+        )
+    if not math.isfinite(result):
+        raise ValueError(
+            f"format_result() requires a finite float; got {result!r} (nan or inf is not allowed)"
+        )
     return f"{result:.10g}"
 
 # Memory feature: protected by a threading.Lock so concurrent reads/writes
