@@ -143,7 +143,6 @@ def parse_args(args: list[str]) -> float | None:
     if len(args) < 4:
         print("Error: need operation and two numbers")
         print("Usage: calc <add|sub|mul|div|pow|pct> <num1> <num2>")
-  calc pct <num1> <num2>        What percent num1 is of num2
         return None
 
     op = args[1]
@@ -178,7 +177,7 @@ def print_usage() -> None:
     print("")
     print("Arithmetic:")
     print("  calc <add|sub|mul|div|pow|pct> <num1> <num2>")
-  calc pct <num1> <num2>        What percent num1 is of num2
+    print("  calc pct <num1> <num2>       What percent num1 is of num2")
     print("")
     print("Commands:")
     print("  calc history            Show calculation history")
