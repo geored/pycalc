@@ -1024,3 +1024,112 @@ def test_mem_store_valid(tmp_path, monkeypatch):
     memory_clear()
     parse_args(["calc", "mem", "store", "42"])
     assert memory_recall() == 42.0
+
+
+# ---------------------------------------------------------------------------
+# 15. Percentage operation — pct feature (Issue: add-percentage.md spec)
+# ---------------------------------------------------------------------------
+
+def test_pct_normal():
+    """25 is 12.5% of 200."""
+    from calc import calculate
+    assert calculate("pct", 25, 200) == 12.5
+
+def test_pct_fifty_percent():
+    """50 is 50.0% of 100."""
+    from calc import calculate
+    assert calculate("pct", 50, 100) == 50.0
+
+def test_pct_one_hundred_percent():
+    """200 is 100.0% of 200."""
+    from calc import calculate
+    assert calculate("pct", 200, 200) == 100.0
+
+def test_pct_zero_numerator():
+    """0 is 0.0% of any non-zero number."""
+    from calc import calculate
+    assert calculate("pct", 0, 50) == 0.0
+
+def test_pct_zero_denominator_raises_value_error():
+    """pct with zero denominator must raise ValueError, not ZeroDivisionError or crash."""
+    from calc import calculate
+    with pytest.raises(ValueError, match="[Cc]annot|zero"):
+        calculate("pct", 25, 0)
+
+def test_pct_in_ops_dict():
+    """The 'pct' key must be present in calculate()'s dispatch table."""
+    from calc import calculate
+    # Should not raise ValueError("Unknown operation: pct")
+    try:
+        calculate("pct", 10, 100)
+    except ValueError as e:
+        if "Unknown operation" in str(e):
+            pytest.fail(f"'pct' not registered in ops dict: {e}")
+
+def test_pct_cli_basic(tmp_path, monkeypatch):
+    """python calc.py pct 25 200 → prints '12.5'"""
+    monkeypatch.chdir(tmp_path)
+    result = subprocess.run(
+        [sys.executable, "/workspace/calc.py", "pct", "25", "200"],
+        capture_output=True, text=True
+    )
+    assert result.returncode == 0
+    assert "12.5" in result.stdout
+
+def test_pct_cli_fifty_percent(tmp_path, monkeypatch):
+    """python calc.py pct 50 100 → prints '50'"""
+    monkeypatch.chdir(tmp_path)
+    result = subprocess.run(
+        [sys.executable, "/workspace/calc.py", "pct", "50", "100"],
+        capture_output=True, text=True
+    )
+    assert result.returncode == 0
+    assert "50" in result.stdout
+
+def test_pct_cli_zero_denominator_exits_nonzero(tmp_path, monkeypatch):
+    """python calc.py pct 10 0 → exits non-zero with an error message."""
+    monkeypatch.chdir(tmp_path)
+    result = subprocess.run(
+        [sys.executable, "/workspace/calc.py", "pct", "10", "0"],
+        capture_output=True, text=True
+    )
+    assert result.returncode != 0
+
+def test_pct_cli_zero_denominator_friendly_message(tmp_path, monkeypatch):
+    """python calc.py pct 10 0 → prints a friendly error, no traceback."""
+    monkeypatch.chdir(tmp_path)
+    result = subprocess.run(
+        [sys.executable, "/workspace/calc.py", "pct", "10", "0"],
+        capture_output=True, text=True
+    )
+    assert "Error" in result.stdout or "Error" in result.stderr
+    assert "Traceback" not in result.stderr
+
+def test_pct_saved_to_history(tmp_path, monkeypatch):
+    """A successful pct calculation must be appended to history."""
+    monkeypatch.chdir(tmp_path)
+    parse_args(["calc", "pct", "25", "200"])
+    history = load_history()
+    assert len(history) == 1
+    assert history[0]["op"] == "pct"
+    assert history[0]["a"] == 25.0
+    assert history[0]["b"] == 200.0
+    assert history[0]["result"] == 12.5
+
+def test_pct_zero_denominator_no_history_entry(tmp_path, monkeypatch):
+    """Failed pct (zero denominator) must NOT write a history entry."""
+    monkeypatch.chdir(tmp_path)
+    save_history([])
+    subprocess.run(
+        [sys.executable, "/workspace/calc.py", "pct", "10", "0"],
+        capture_output=True, text=True
+    )
+    assert load_history() == []
+
+def test_help_includes_pct(capsys):
+    """print_usage() must mention 'pct' in the help text."""
+    print_usage()
+    captured = capsys.readouterr()
+    assert "pct" in captured.out, (
+        "print_usage() does not mention 'pct' operation — update help text"
+    )
