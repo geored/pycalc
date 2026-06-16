@@ -973,3 +973,37 @@ def test_memory_api_surface_unchanged():
     assert memory_recall() == 7
     memory_clear()
     assert memory_recall() == 0
+
+
+# ---------------------------------------------------------------------------
+# 14. mem store — in-process tests with pytest.raises(SystemExit) (Issue #4 / B5)
+# ---------------------------------------------------------------------------
+
+def test_mem_store_missing_value(tmp_path, monkeypatch, capsys):
+    """'mem store' with no value exits 1 and prints the expected error message."""
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as exc_info:
+        parse_args(["calc", "mem", "store"])
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    assert "Error" in captured.out
+    assert "mem store" in captured.out
+
+
+def test_mem_store_non_numeric(tmp_path, monkeypatch, capsys):
+    """'mem store abc' exits 1 and prints an error that echoes the bad value."""
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as exc_info:
+        parse_args(["calc", "mem", "store", "abc"])
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    assert "Error" in captured.out
+    assert "abc" in captured.out
+
+
+def test_mem_store_valid(tmp_path, monkeypatch):
+    """'mem store 42' stores 42.0 in memory and exits normally (no SystemExit)."""
+    monkeypatch.chdir(tmp_path)
+    memory_clear()
+    parse_args(["calc", "mem", "store", "42"])
+    assert memory_recall() == 42.0
