@@ -580,3 +580,45 @@ def test_load_history_corrupt_does_not_crash_program(tmp_path, monkeypatch):
     except Exception as e:
         pytest.fail(f"load_history() raised {type(e).__name__} on corrupt file: {e}")
     assert result == []
+
+
+# ---------------------------------------------------------------------------
+# 10. print_usage — complete command coverage (Issue #11)
+# ---------------------------------------------------------------------------
+
+def test_print_usage_contains_history(capsys):
+    """print_usage() must document the 'history' command."""
+    print_usage()
+    captured = capsys.readouterr()
+    assert "history" in captured.out
+
+def test_print_usage_contains_clear(capsys):
+    """print_usage() must document the 'clear' command."""
+    print_usage()
+    captured = capsys.readouterr()
+    assert "clear" in captured.out
+
+def test_print_usage_contains_mem_store(capsys):
+    """print_usage() must document the 'mem store' sub-command."""
+    print_usage()
+    captured = capsys.readouterr()
+    assert "mem store" in captured.out
+
+def test_print_usage_contains_mem_recall(capsys):
+    """print_usage() must document the 'mem recall' sub-command."""
+    print_usage()
+    captured = capsys.readouterr()
+    assert "mem recall" in captured.out
+
+def test_print_usage_contains_mem_clear(capsys):
+    """print_usage() must document the 'mem clear' sub-command."""
+    print_usage()
+    captured = capsys.readouterr()
+    assert "mem clear" in captured.out
+
+def test_print_usage_contains_all_required_keywords(capsys):
+    """Single omnibus check: help text must include all commands and sub-commands."""
+    print_usage()
+    captured = capsys.readouterr()
+    for keyword in ["history", "clear", "mem store", "mem recall", "mem clear"]:
+        assert keyword in captured.out, f"print_usage() output missing keyword: {keyword!r}"

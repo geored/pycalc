@@ -146,9 +146,19 @@ def parse_args(args):
     return result
 
 def print_usage():
-    # Bug: usage text is incomplete, missing mem and clear commands
-    print("Usage: calc <operation> <num1> <num2>")
-    print("Operations: add, sub, mul, div, pow")
+    print("Usage: calc <command> [arguments]")
+    print("")
+    print("Arithmetic:")
+    print("  calc <add|sub|mul|div|pow> <num1> <num2>")
+    print("")
+    print("Commands:")
+    print("  calc history            Show calculation history")
+    print("  calc clear              Clear calculation history")
+    print("  calc mem                Show current memory value")
+    print("  calc mem store <num>    Store a value in memory")
+    print("  calc mem recall         Recall the stored memory value")
+    print("  calc mem clear          Reset memory to 0")
+    print("  calc help               Show this help message")
 
 def main():
     parse_args(sys.argv)
