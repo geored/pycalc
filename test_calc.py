@@ -841,3 +841,123 @@ def test_save_history_original_preserved_on_json_error(tmp_path, monkeypatch):
     assert load_history() == original_data, (
         "Original history file was corrupted when json.dump() raised an exception"
     )
+
+
+# ---------------------------------------------------------------------------
+# 13. Memory thread-safety — Issue #7 / B4
+# ---------------------------------------------------------------------------
+
+def test_memory_lock_exists():
+    """calc module must expose a _memory_lock threading.Lock instance."""
+    import threading
+    import calc as calc_module
+    assert hasattr(calc_module, "_memory_lock"), (
+        "calc module must define a module-level _memory_lock"
+    )
+    assert isinstance(calc_module._memory_lock, type(threading.Lock())), (
+        "_memory_lock must be a threading.Lock instance"
+    )
+
+
+def test_memory_store_acquires_lock(monkeypatch):
+    """memory_store() must acquire _memory_lock before writing."""
+    import unittest.mock as mock
+    import calc as calc_module
+    acquired = []
+    original_lock = calc_module._memory_lock
+
+    class SpyLock:
+        def __enter__(self):
+            acquired.append(True)
+            return original_lock.__enter__()
+        def __exit__(self, *args):
+            return original_lock.__exit__(*args)
+
+    monkeypatch.setattr(calc_module, "_memory_lock", SpyLock())
+    calc_module.memory_store(99)
+    assert len(acquired) == 1, "memory_store() must acquire the lock exactly once"
+
+
+def test_memory_recall_acquires_lock(monkeypatch):
+    """memory_recall() must acquire _memory_lock before reading."""
+    import unittest.mock as mock
+    import calc as calc_module
+    acquired = []
+    original_lock = calc_module._memory_lock
+
+    class SpyLock:
+        def __enter__(self):
+            acquired.append(True)
+            return original_lock.__enter__()
+        def __exit__(self, *args):
+            return original_lock.__exit__(*args)
+
+    monkeypatch.setattr(calc_module, "_memory_lock", SpyLock())
+    calc_module.memory_recall()
+    assert len(acquired) == 1, "memory_recall() must acquire the lock exactly once"
+
+
+def test_memory_clear_acquires_lock(monkeypatch):
+    """memory_clear() must acquire _memory_lock before writing."""
+    import calc as calc_module
+    acquired = []
+    original_lock = calc_module._memory_lock
+
+    class SpyLock:
+        def __enter__(self):
+            acquired.append(True)
+            return original_lock.__enter__()
+        def __exit__(self, *args):
+            return original_lock.__exit__(*args)
+
+    monkeypatch.setattr(calc_module, "_memory_lock", SpyLock())
+    calc_module.memory_clear()
+    assert len(acquired) == 1, "memory_clear() must acquire the lock exactly once"
+
+
+def test_memory_concurrent_stores_no_corruption():
+    """Concurrent memory_store() calls from many threads must not corrupt state."""
+    import threading
+    THREADS = 50
+    ITERS = 200
+    errors = []
+
+    def writer(val):
+        for _ in range(ITERS):
+            memory_store(val)
+            seen = memory_recall()
+            # Each recall must return a value that was validly stored by some thread
+            if seen not in range(THREADS):
+                errors.append(seen)
+
+    threads = [threading.Thread(target=writer, args=(i,)) for i in range(THREADS)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert errors == [], (
+        f"memory_recall() returned invalid value(s) under concurrent access: {errors[:5]}"
+    )
+
+
+def test_memory_store_recall_still_works_after_lock_added():
+    """Regression: store/recall round-trip must still work correctly with the lock."""
+    memory_store(123)
+    assert memory_recall() == 123
+
+
+def test_memory_clear_still_resets_after_lock_added():
+    """Regression: clear must still reset to 0 with the lock in place."""
+    memory_store(456)
+    memory_clear()
+    assert memory_recall() == 0
+
+
+def test_memory_api_surface_unchanged():
+    """The public API (memory_store, memory_recall, memory_clear) must be callable."""
+    # Verifies parse_args can still call these by name without modification
+    memory_store(7)
+    assert memory_recall() == 7
+    memory_clear()
+    assert memory_recall() == 0

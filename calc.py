@@ -4,6 +4,7 @@ import sys
 import json
 import os
 import tempfile
+import threading
 
 HISTORY_FILE = "calc_history.json"
 
@@ -59,17 +60,22 @@ def format_result(result):
     # Bug: doesn't handle float precision (0.1 + 0.2 = 0.30000000000000004)
     return str(result)
 
-# Bug: memory feature stores in global mutable state with no thread safety
+# Memory feature: protected by a threading.Lock so concurrent reads/writes
+# are serialised and cannot produce race conditions (fixes B4).
 memory = {"value": 0}
+_memory_lock = threading.Lock()
 
 def memory_store(value):
-    memory["value"] = value
+    with _memory_lock:
+        memory["value"] = value
 
 def memory_recall():
-    return memory["value"]
+    with _memory_lock:
+        return memory["value"]
 
 def memory_clear():
-    memory["value"] = 0
+    with _memory_lock:
+        memory["value"] = 0
 
 def parse_args(args):
     if len(args) < 2:
