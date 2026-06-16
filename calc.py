@@ -32,9 +32,10 @@ def save_history(history: list[HistoryRecord]) -> None:
             tmp_path = tmp.name
             json.dump(history, tmp)
         os.replace(tmp_path, HISTORY_FILE)
-    except Exception:
+    except (OSError, TypeError) as e:
         if tmp_path is not None and os.path.exists(tmp_path):
             os.unlink(tmp_path)
+        print(f"Warning: could not save history: {e}", file=sys.stderr)
         raise
 
 def add(a: float, b: float) -> float:

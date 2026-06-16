@@ -1336,3 +1336,118 @@ def test_save_history_typeerror_in_clear_branch_exits_1(tmp_path, monkeypatch, c
     captured = capsys.readouterr()
     assert "Error" in captured.err
     assert "Traceback" not in captured.err
+
+
+# ---------------------------------------------------------------------------
+# 20. save_history() — narrow exception type + stderr warning (Issue #45)
+# ---------------------------------------------------------------------------
+
+def test_save_history_warns_to_stderr_on_oserror(tmp_path, monkeypatch, capsys):
+    """save_history() must print a Warning to stderr before re-raising OSError."""
+    import unittest.mock as mock
+    monkeypatch.chdir(tmp_path)
+    data = [{"op": "add", "a": 1.0, "b": 2.0, "result": 3.0}]
+
+    with mock.patch("tempfile.NamedTemporaryFile", side_effect=OSError("disk full")):
+        with pytest.raises(OSError):
+            save_history(data)
+
+    captured = capsys.readouterr()
+    assert "Warning" in captured.err, (
+        f"Expected 'Warning' in stderr but got: {captured.err!r}"
+    )
+    assert "disk full" in captured.err, (
+        f"Expected the OSError message in stderr but got: {captured.err!r}"
+    )
+
+
+def test_save_history_warns_to_stderr_on_typeerror(tmp_path, monkeypatch, capsys):
+    """save_history() must print a Warning to stderr before re-raising TypeError."""
+    import unittest.mock as mock
+    monkeypatch.chdir(tmp_path)
+
+    class Unserializable:
+        pass
+
+    bad_data = [Unserializable()]
+    with pytest.raises(TypeError):
+        save_history(bad_data)
+
+    captured = capsys.readouterr()
+    assert "Warning" in captured.err, (
+        f"Expected 'Warning' in stderr when json.dump() fails but got: {captured.err!r}"
+    )
+
+
+def test_save_history_reraises_oserror_after_warning(tmp_path, monkeypatch, capsys):
+    """save_history() must still re-raise OSError after emitting the warning."""
+    import unittest.mock as mock
+    monkeypatch.chdir(tmp_path)
+
+    with mock.patch("tempfile.NamedTemporaryFile", side_effect=OSError("permission denied")):
+        with pytest.raises(OSError, match="permission denied"):
+            save_history([])
+
+    # Warning must still have been emitted
+    captured = capsys.readouterr()
+    assert "Warning" in captured.err
+
+
+def test_save_history_reraises_typeerror_after_warning(tmp_path, monkeypatch, capsys):
+    """save_history() must still re-raise TypeError after emitting the warning."""
+    import unittest.mock as mock
+    monkeypatch.chdir(tmp_path)
+
+    class Unserializable:
+        pass
+
+    bad_data = [Unserializable()]
+    with pytest.raises(TypeError):
+        save_history(bad_data)
+
+    # Warning must still have been emitted
+    captured = capsys.readouterr()
+    assert "Warning" in captured.err
+
+
+def test_save_history_does_not_catch_other_exceptions(tmp_path, monkeypatch, capsys):
+    """save_history() must NOT swallow exceptions outside (OSError, TypeError)."""
+    import unittest.mock as mock
+    monkeypatch.chdir(tmp_path)
+
+    # RuntimeError is outside the (OSError, TypeError) catch — must propagate unmodified
+    with mock.patch("tempfile.NamedTemporaryFile", side_effect=RuntimeError("unexpected")):
+        with pytest.raises(RuntimeError, match="unexpected"):
+            save_history([])
+
+
+def test_save_history_warning_message_contains_save_history_context(tmp_path, monkeypatch, capsys):
+    """The stderr warning should be diagnostic enough to identify the save failure."""
+    import unittest.mock as mock
+    monkeypatch.chdir(tmp_path)
+
+    with mock.patch("tempfile.NamedTemporaryFile", side_effect=OSError("no space left")):
+        with pytest.raises(OSError):
+            save_history([])
+
+    captured = capsys.readouterr()
+    # The warning must include the exception message so operators know what went wrong
+    assert "no space left" in captured.err, (
+        f"Warning must include the exception message; stderr was: {captured.err!r}"
+    )
+
+
+def test_save_history_warning_goes_to_stderr_not_stdout(tmp_path, monkeypatch, capsys):
+    """The warning must go to stderr, not stdout, consistent with load_history()."""
+    import unittest.mock as mock
+    monkeypatch.chdir(tmp_path)
+
+    with mock.patch("tempfile.NamedTemporaryFile", side_effect=OSError("disk full")):
+        with pytest.raises(OSError):
+            save_history([])
+
+    captured = capsys.readouterr()
+    assert "Warning" not in captured.out, (
+        "Warning must go to stderr, not stdout"
+    )
+    assert "Warning" in captured.err
