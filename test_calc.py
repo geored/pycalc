@@ -1267,3 +1267,72 @@ def test_dunder_main_guard(tmp_path, monkeypatch):
     )
     assert result.returncode == 0
     assert "9" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# 19. save_history OSError/TypeError handled gracefully — Issue #44
+# ---------------------------------------------------------------------------
+
+def test_save_history_oserror_in_arithmetic_branch_exits_1(tmp_path, monkeypatch, capsys):
+    """OSError from save_history() during arithmetic must print friendly error and exit 1."""
+    import unittest.mock as mock
+    monkeypatch.chdir(tmp_path)
+    with mock.patch("calc.save_history", side_effect=OSError("disk full")):
+        with pytest.raises(SystemExit) as exc_info:
+            parse_args(["calc", "add", "2", "3"])
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    assert "Error" in captured.err
+    assert "disk full" in captured.err
+    assert "Traceback" not in captured.err
+
+
+def test_save_history_oserror_in_arithmetic_result_still_printed(tmp_path, monkeypatch, capsys):
+    """Result must be printed to stdout before the history save fails."""
+    import unittest.mock as mock
+    monkeypatch.chdir(tmp_path)
+    with mock.patch("calc.save_history", side_effect=OSError("disk full")):
+        with pytest.raises(SystemExit):
+            parse_args(["calc", "add", "2", "3"])
+    captured = capsys.readouterr()
+    assert "5" in captured.out
+
+
+def test_save_history_typeerror_in_arithmetic_branch_exits_1(tmp_path, monkeypatch, capsys):
+    """TypeError from save_history() during arithmetic must print friendly error and exit 1."""
+    import unittest.mock as mock
+    monkeypatch.chdir(tmp_path)
+    with mock.patch("calc.save_history", side_effect=TypeError("not serialisable")):
+        with pytest.raises(SystemExit) as exc_info:
+            parse_args(["calc", "mul", "3", "4"])
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    assert "Error" in captured.err
+    assert "Traceback" not in captured.err
+
+
+def test_save_history_oserror_in_clear_branch_exits_1(tmp_path, monkeypatch, capsys):
+    """OSError from save_history([]) during 'clear' must print friendly error and exit 1."""
+    import unittest.mock as mock
+    monkeypatch.chdir(tmp_path)
+    with mock.patch("calc.save_history", side_effect=OSError("permission denied")):
+        with pytest.raises(SystemExit) as exc_info:
+            parse_args(["calc", "clear"])
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    assert "Error" in captured.err
+    assert "permission denied" in captured.err
+    assert "Traceback" not in captured.err
+
+
+def test_save_history_typeerror_in_clear_branch_exits_1(tmp_path, monkeypatch, capsys):
+    """TypeError from save_history([]) during 'clear' must print friendly error and exit 1."""
+    import unittest.mock as mock
+    monkeypatch.chdir(tmp_path)
+    with mock.patch("calc.save_history", side_effect=TypeError("not serialisable")):
+        with pytest.raises(SystemExit) as exc_info:
+            parse_args(["calc", "clear"])
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    assert "Error" in captured.err
+    assert "Traceback" not in captured.err
