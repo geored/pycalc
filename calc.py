@@ -8,7 +8,7 @@ import threading
 
 HISTORY_FILE = "calc_history.json"
 
-def load_history():
+def load_history() -> list[dict]:
     if os.path.exists(HISTORY_FILE):
         with open(HISTORY_FILE) as f:
             try:
@@ -18,32 +18,32 @@ def load_history():
                 return []
     return []
 
-def save_history(history: list) -> None:
+def save_history(history: list[dict]) -> None:
     dir_name = os.path.dirname(os.path.abspath(HISTORY_FILE))
     with tempfile.NamedTemporaryFile("w", dir=dir_name, delete=False, suffix=".tmp") as tmp:
         json.dump(history, tmp)
         tmp_path = tmp.name
     os.replace(tmp_path, HISTORY_FILE)
 
-def add(a, b):
+def add(a: float, b: float) -> float:
     return a + b
 
-def subtract(a, b):
+def subtract(a: float, b: float) -> float:
     return a - b
 
-def multiply(a, b):
+def multiply(a: float, b: float) -> float:
     return a * b
 
-def divide(a, b):
+def divide(a: float, b: float) -> float:
     if b == 0:
         raise ValueError("Cannot divide by zero")
     return a / b
 
-def power(a, b):
+def power(a: float, b: float) -> float:
     return a ** b
 
-def calculate(op, a, b):
-    ops = {
+def calculate(op: str, a: float, b: float) -> float:
+    ops: dict[str, object] = {
         "add": add,
         "sub": subtract,
         "mul": multiply,
@@ -53,10 +53,10 @@ def calculate(op, a, b):
     func = ops.get(op)
     if func is None:
         raise ValueError(f"Unknown operation: {op}")
-    result = func(a, b)
+    result = func(a, b)  # type: ignore[operator]
     return result
 
-def format_result(result):
+def format_result(result: float) -> str:
     # Use :.10g to suppress IEEE 754 floating-point noise while preserving
     # meaningful precision. Trailing zeros and unnecessary ".0" suffixes are
     # dropped automatically; scientific notation kicks in for very large/small
@@ -65,22 +65,22 @@ def format_result(result):
 
 # Memory feature: protected by a threading.Lock so concurrent reads/writes
 # are serialised and cannot produce race conditions (fixes B4).
-memory = {"value": 0}
+memory: dict[str, float] = {"value": 0}
 _memory_lock = threading.Lock()
 
-def memory_store(value):
+def memory_store(value: float) -> None:
     with _memory_lock:
         memory["value"] = value
 
-def memory_recall():
+def memory_recall() -> float:
     with _memory_lock:
         return memory["value"]
 
-def memory_clear():
+def memory_clear() -> None:
     with _memory_lock:
         memory["value"] = 0
 
-def parse_args(args):
+def parse_args(args: list[str]) -> float | None:
     if len(args) < 2:
         print_usage()
         return None
@@ -150,7 +150,7 @@ def parse_args(args):
         sys.exit(1)
 
     # Save to history -- only reached on successful calculation
-    entry = {"op": op, "a": a, "b": b, "result": result}
+    entry: dict[str, object] = {"op": op, "a": a, "b": b, "result": result}
     history = load_history()
     history.append(entry)
     save_history(history)
@@ -158,7 +158,7 @@ def parse_args(args):
     print(format_result(result))
     return result
 
-def print_usage():
+def print_usage() -> None:
     print("Usage: calc <command> [arguments]")
     print("")
     print("Arithmetic:")
@@ -173,7 +173,7 @@ def print_usage():
     print("  calc mem clear          Reset memory to 0")
     print("  calc help               Show this help message")
 
-def main():
+def main() -> None:
     parse_args(sys.argv)
 
 if __name__ == "__main__":
