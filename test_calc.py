@@ -1203,3 +1203,56 @@ def test_mem_valid_subcommands_unaffected(tmp_path, monkeypatch):
     assert memory_recall() == 7.0
     parse_args(["calc", "mem", "clear"])
     assert memory_recall() == 0.0
+
+
+# ---------------------------------------------------------------------------
+# 18. In-process coverage for parse_args error handlers (Issue #27)
+# ---------------------------------------------------------------------------
+
+def test_parse_args_invalid_a_exits(tmp_path, monkeypatch, capsys):
+    """Non-numeric first operand: exits 1 and echoes the bad token."""
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as exc:
+        parse_args(["calc", "add", "foo", "3"])
+    assert exc.value.code == 1
+    captured = capsys.readouterr()
+    assert "Error" in captured.out
+    assert "foo" in captured.out
+
+def test_parse_args_invalid_b_exits(tmp_path, monkeypatch, capsys):
+    """Non-numeric second operand: exits 1 and echoes the bad token."""
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as exc:
+        parse_args(["calc", "add", "3", "bar"])
+    assert exc.value.code == 1
+    captured = capsys.readouterr()
+    assert "Error" in captured.out
+    assert "bar" in captured.out
+
+def test_parse_args_unknown_op_exits(tmp_path, monkeypatch, capsys):
+    """Unknown operator: exits 1 and prints a friendly error (no KeyError/traceback)."""
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as exc:
+        parse_args(["calc", "modulo", "10", "3"])
+    assert exc.value.code == 1
+    captured = capsys.readouterr()
+    assert "Error" in captured.out
+    assert "KeyError" not in captured.out
+    assert "Traceback" not in captured.out
+
+def test_parse_args_unknown_op_message_contains_op(tmp_path, monkeypatch, capsys):
+    """Error message for unknown op should name the bad op."""
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit):
+        parse_args(["calc", "modulo", "10", "3"])
+    captured = capsys.readouterr()
+    assert "modulo" in captured.out
+
+def test_main_calls_parse_args(tmp_path, monkeypatch, capsys):
+    """main() must call parse_args(sys.argv) — covers line 210."""
+    import calc as calc_module
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("sys.argv", ["calc", "add", "1", "2"])
+    calc_module.main()
+    captured = capsys.readouterr()
+    assert "3" in captured.out
