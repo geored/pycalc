@@ -155,19 +155,31 @@ def test_valid_ops_unaffected_by_guard():
 # ---------------------------------------------------------------------------
 
 def test_format_result_integer_float():
-    assert format_result(5.0) == "5.0"
+    assert format_result(5.0) == "5"
 
 def test_format_result_negative():
-    assert format_result(-3.0) == "-3.0"
+    assert format_result(-3.0) == "-3"
 
 def test_format_result_zero():
-    assert format_result(0.0) == "0.0"
+    assert format_result(0.0) == "0"
 
 def test_format_result_returns_string():
     assert isinstance(format_result(42.0), str)
 
 def test_format_result_large_number():
-    assert format_result(1000000.0) == "1000000.0"
+    assert format_result(1000000.0) == "1000000"
+
+def test_format_result_float_precision():
+    """0.1 + 0.2 must not produce floating-point noise."""
+    assert format_result(0.1 + 0.2) == "0.3"
+
+def test_format_result_one_third():
+    """1/3 should be rounded to 10 significant figures."""
+    assert format_result(1 / 3) == "0.3333333333"
+
+def test_format_result_power_of_two():
+    """Whole-number results must have no trailing .0."""
+    assert format_result(256.0) == "256"
 
 
 # ---------------------------------------------------------------------------
