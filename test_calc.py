@@ -1871,3 +1871,46 @@ def test_format_result_existing_behaviour_unchanged_after_int_fix():
     assert format_result(0.1 + 0.2) == "0.3"
     assert format_result(256.0) == "256"
     assert format_result(1 / 3) == "0.3333333333"
+
+
+# ---------------------------------------------------------------------------
+# 26. History cap at MAX_HISTORY records — Issue #64
+# ---------------------------------------------------------------------------
+
+def test_max_history_constant_exists():
+    """MAX_HISTORY must be an exported positive int constant from the calc module."""
+    import calc
+    assert hasattr(calc, "MAX_HISTORY"), "calc module must define MAX_HISTORY"
+    assert isinstance(calc.MAX_HISTORY, int), "MAX_HISTORY must be an int"
+    assert calc.MAX_HISTORY > 0, "MAX_HISTORY must be positive"
+
+
+def test_history_capped_at_max(tmp_path, monkeypatch):
+    """After MAX_HISTORY + 1 calculations, history must contain at most MAX_HISTORY records."""
+    from calc import MAX_HISTORY
+    monkeypatch.chdir(tmp_path)
+    # Pre-seed history with exactly MAX_HISTORY records
+    records = [{"op": "add", "a": float(i), "b": 1.0, "result": float(i + 1)} for i in range(MAX_HISTORY)]
+    save_history(records)
+    # Add one more via parse_args — this must trigger the cap
+    parse_args(["calc", "add", "999", "1"])
+    history = load_history()
+    assert len(history) <= MAX_HISTORY, (
+        f"Expected at most {MAX_HISTORY} records after cap, got {len(history)}"
+    )
+
+
+def test_history_keeps_most_recent_record_at_cap(tmp_path, monkeypatch):
+    """When the cap is exceeded, the newest record must be the last one in the file."""
+    from calc import MAX_HISTORY
+    monkeypatch.chdir(tmp_path)
+    records = [{"op": "add", "a": float(i), "b": 1.0, "result": float(i + 1)} for i in range(MAX_HISTORY)]
+    save_history(records)
+    parse_args(["calc", "mul", "7", "6"])
+    history = load_history()
+    assert history[-1]["op"] == "mul", (
+        f"Expected last record op to be 'mul', got {history[-1]['op']!r}"
+    )
+    assert history[-1]["result"] == 42.0, (
+        f"Expected last record result to be 42.0, got {history[-1]['result']}"
+    )

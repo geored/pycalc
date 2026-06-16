@@ -8,6 +8,7 @@ import threading
 from collections.abc import Callable
 
 HISTORY_FILE = "calc_history.json"
+MAX_HISTORY = 1000
 
 # Type alias for a single history record: op is str, a/b/result are float.
 HistoryRecord = dict[str, float | str]
@@ -223,6 +224,7 @@ def parse_args(args: list[str]) -> float | None:
     try:
         history = load_history()
         history.append(entry)
+        history = history[-MAX_HISTORY:]
         save_history(history)
     except (TypeError, OSError) as e:
         print(f"Error: Could not save history: {e}", file=sys.stderr)
