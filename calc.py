@@ -3,11 +3,13 @@
 import sys
 import json
 import os
+import stat
 import tempfile
 import threading
 from collections.abc import Callable
 
 HISTORY_FILE = "calc_history.json"
+MEMORY_FILE = "calc_memory.json"
 MAX_HISTORY = 1000
 
 # Type alias for a single history record: op is str, a/b/result are float.
@@ -37,6 +39,40 @@ def save_history(history: list[HistoryRecord]) -> None:
         if tmp_path is not None and os.path.exists(tmp_path):
             os.unlink(tmp_path)
         print(f"Warning: could not save history: {e}", file=sys.stderr)
+        raise
+
+def load_memory() -> float:
+    """Load the persisted memory value from MEMORY_FILE.
+
+    Returns 0.0 if the file does not exist or is corrupt.
+    """
+    if os.path.exists(MEMORY_FILE):
+        with open(MEMORY_FILE) as f:
+            try:
+                data = json.load(f)
+                return float(data.get("value", 0.0))
+            except (json.JSONDecodeError, TypeError, ValueError):
+                print("Warning: memory file is corrupt; resetting to 0.", file=sys.stderr)
+                return 0.0
+    return 0.0
+
+def save_memory(value: float) -> None:
+    """Persist the memory value to MEMORY_FILE atomically with 0600 permissions."""
+    dir_name = os.path.dirname(os.path.abspath(MEMORY_FILE))
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w", dir=dir_name, delete=False, suffix=".tmp"
+        ) as tmp:
+            tmp_path = tmp.name
+            json.dump({"value": value}, tmp)
+        # Enforce 0600 (owner read/write only) before moving into place
+        os.chmod(tmp_path, stat.S_IRUSR | stat.S_IWUSR)
+        os.replace(tmp_path, MEMORY_FILE)
+    except (OSError, TypeError) as e:
+        if tmp_path is not None and os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        print(f"Warning: could not save memory: {e}", file=sys.stderr)
         raise
 
 def add(a: float, b: float) -> float:
@@ -72,6 +108,7 @@ def percentage(a: float, b: float) -> float:
     if b == 0:
         raise ValueError("Cannot calculate percentage: denominator is zero")
     return (a / b) * 100
+
 def calculate(op: str, a: float, b: float) -> float:
     ops: dict[str, Callable[[float, float], float]] = {
         "add": add,
@@ -87,18 +124,18 @@ def calculate(op: str, a: float, b: float) -> float:
     return func(a, b)
 
 def format_result(result: int | float) -> str:
-    # Format choice (Option A — deliberately chosen, Issue #29):
+    # Format choice (Option A -- deliberately chosen, Issue #29):
     #
     # We use :.10g, which means:
     #   - Up to 10 significant figures of precision (sufficient for all practical inputs).
-    #   - Trailing zeros are stripped: 5.0 → "5", 256.0 → "256".
+    #   - Trailing zeros are stripped: 5.0 -> "5", 256.0 -> "256".
     #   - The ".0" suffix is intentionally omitted for whole-number results.
-    #     README examples and docs must reflect this (e.g. "# → 5", not "# → 5.0").
-    #   - IEEE 754 floating-point noise is suppressed: 0.1 + 0.2 → "0.3" (not "0.30000000000000004").
+    #     README examples and docs must reflect this (e.g. "# -> 5", not "# -> 5.0").
+    #   - IEEE 754 floating-point noise is suppressed: 0.1 + 0.2 -> "0.3" (not "0.30000000000000004").
     #   - Scientific notation engages automatically for very large/small values
     #     (e.g. 1e-10, 1e15), which is appropriate for a CLI calculator.
     #
-    # Do NOT change this to :.10f or str() — both would reintroduce noise or
+    # Do NOT change this to :.10f or str() -- both would reintroduce noise or
     # always show trailing zeros, breaking the noise-suppression guarantee.
     import math
     if isinstance(result, complex):
@@ -117,20 +154,38 @@ def format_result(result: int | float) -> str:
 
 # Memory feature: protected by a threading.Lock so concurrent reads/writes
 # are serialised and cannot produce race conditions (fixes B4).
+# Memory is persisted to MEMORY_FILE (calc_memory.json) across invocations --
+# analogous to history persistence in calc_history.json (Issue #65).
 memory: dict[str, float] = {"value": 0}
 _memory_lock = threading.Lock()
 
 def memory_store(value: float) -> None:
+    """Store value in the in-process memory dict and persist it to MEMORY_FILE."""
     with _memory_lock:
         memory["value"] = value
+        try:
+            save_memory(value)
+        except (OSError, TypeError) as e:
+            # Warn but do not crash: in-process state is already updated.
+            print(f"Warning: could not persist memory to disk: {e}", file=sys.stderr)
 
 def memory_recall() -> float:
+    """Return the current memory value, loading from MEMORY_FILE if present."""
     with _memory_lock:
-        return memory["value"]
+        # Sync from disk on every recall so that values stored by a previous
+        # process invocation are visible.
+        disk_value = load_memory()
+        memory["value"] = disk_value
+        return disk_value
 
 def memory_clear() -> None:
+    """Reset memory to 0 in-process and persist the reset to MEMORY_FILE."""
     with _memory_lock:
         memory["value"] = 0
+        try:
+            save_memory(0.0)
+        except (OSError, TypeError) as e:
+            print(f"Warning: could not persist memory clear to disk: {e}", file=sys.stderr)
 
 def parse_args(args: list[str]) -> float | None:
     if len(args) < 2:
@@ -177,7 +232,7 @@ def parse_args(args: list[str]) -> float | None:
                 sys.exit(1)
             memory_store(value)
             print(f"Stored: {args[3]}")
-            print("Note: memory is session-only and will be lost when this process exits.")
+            print("Note: memory is persisted to disk (session values are not lost on exit).")
         elif subcmd == "recall":
             print(f"Memory: {memory_recall()}")
         elif subcmd == "clear":
@@ -243,10 +298,14 @@ def print_usage() -> None:
     print("  calc history            Show calculation history")
     print("  calc clear              Clear calculation history")
     print("  calc mem                Show current memory value")
-    print("  calc mem store <num>    Store a value in memory (session-only, not persisted)")
-    print("  calc mem recall         Recall the stored memory value")
-    print("  calc mem clear          Reset memory to 0")
+    print("  calc mem store <num>    Store a value in memory (session-only in-process; persisted to disk across sessions)")
+    print("  calc mem recall         Recall the stored memory value (reads from disk)")
+    print("  calc mem clear          Reset memory to 0 (persists the reset to disk)")
     print("  calc help               Show this help message")
+    print("")
+    print("Memory persistence (session values survive restarts):")
+    print("  Memory values are saved to calc_memory.json and survive process restarts.")
+    print("  Use 'calc mem clear' to explicitly reset the stored value to 0.")
 
 def main() -> None:
     parse_args(sys.argv)
