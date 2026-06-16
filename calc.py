@@ -20,7 +20,7 @@ def load_history() -> list[HistoryRecord]:
                 data: list[HistoryRecord] = json.load(f)
                 return data
             except json.JSONDecodeError:
-                print(f"Warning: history file is corrupt; starting fresh.", file=sys.stderr)
+                print("Warning: history file is corrupt; starting fresh.", file=sys.stderr)
                 return []
     return []
 
