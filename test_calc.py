@@ -304,16 +304,18 @@ def test_no_args_shows_usage(tmp_path, monkeypatch, capsys):
 
 def test_only_op_no_operands_prints_error(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
-    result = parse_args(["calc", "add"])
+    with pytest.raises(SystemExit) as exc_info:
+        parse_args(["calc", "add"])
+    assert exc_info.value.code == 1
     captured = capsys.readouterr()
-    assert result is None
     assert "Error" in captured.out
 
 def test_op_and_one_operand_prints_error(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
-    result = parse_args(["calc", "add", "5"])
+    with pytest.raises(SystemExit) as exc_info:
+        parse_args(["calc", "add", "5"])
+    assert exc_info.value.code == 1
     captured = capsys.readouterr()
-    assert result is None
     assert "Error" in captured.out
 
 def test_help_flag_shows_usage(tmp_path, monkeypatch, capsys):
@@ -1152,3 +1154,16 @@ def test_help_includes_pct(capsys):
     assert "pct" in captured.out, (
         "print_usage() does not mention 'pct' operation — update help text"
     )
+
+
+# ---------------------------------------------------------------------------
+# 16. parse_args — missing operands exit non-zero (Issue #31)
+# ---------------------------------------------------------------------------
+
+def test_parse_args_missing_both_operands_exits_nonzero():
+    result = subprocess.run(["python", "calc.py", "add"], capture_output=True, cwd="/workspace")
+    assert result.returncode != 0
+
+def test_parse_args_missing_one_operand_exits_nonzero():
+    result = subprocess.run(["python", "calc.py", "add", "5"], capture_output=True, cwd="/workspace")
+    assert result.returncode != 0
