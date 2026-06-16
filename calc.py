@@ -68,10 +68,19 @@ def calculate(op: str, a: float, b: float) -> float:
     return func(a, b)
 
 def format_result(result: float) -> str:
-    # Use :.10g to suppress IEEE 754 floating-point noise while preserving
-    # meaningful precision. Trailing zeros and unnecessary ".0" suffixes are
-    # dropped automatically; scientific notation kicks in for very large/small
-    # numbers. 10 significant figures is sufficient for all practical inputs.
+    # Format choice (Option A — deliberately chosen, Issue #29):
+    #
+    # We use :.10g, which means:
+    #   - Up to 10 significant figures of precision (sufficient for all practical inputs).
+    #   - Trailing zeros are stripped: 5.0 → "5", 256.0 → "256".
+    #   - The ".0" suffix is intentionally omitted for whole-number results.
+    #     README examples and docs must reflect this (e.g. "# → 5", not "# → 5.0").
+    #   - IEEE 754 floating-point noise is suppressed: 0.1 + 0.2 → "0.3" (not "0.30000000000000004").
+    #   - Scientific notation engages automatically for very large/small values
+    #     (e.g. 1e-10, 1e15), which is appropriate for a CLI calculator.
+    #
+    # Do NOT change this to :.10f or str() — both would reintroduce noise or
+    # always show trailing zeros, breaking the noise-suppression guarantee.
     return f"{result:.10g}"
 
 # Memory feature: protected by a threading.Lock so concurrent reads/writes
