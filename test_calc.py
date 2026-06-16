@@ -803,7 +803,6 @@ def test_save_history_uses_atomic_replace(tmp_path, monkeypatch):
 def test_save_history_temp_file_in_same_dir(tmp_path, monkeypatch):
     """The temp file must be created in the same directory as HISTORY_FILE."""
     import unittest.mock as mock
-    import calc as calc_module
     monkeypatch.chdir(tmp_path)
     data = [{"op": "sub", "a": 5.0, "b": 3.0, "result": 2.0}]
     replace_calls = []
@@ -852,7 +851,6 @@ def test_save_history_no_temp_file_left_behind(tmp_path, monkeypatch):
 
 def test_save_history_original_preserved_on_json_error(tmp_path, monkeypatch):
     """If json.dump() fails, the original history file must remain intact."""
-    import unittest.mock as mock
     monkeypatch.chdir(tmp_path)
 
     # Seed an existing history file
@@ -912,7 +910,6 @@ def test_memory_lock_exists():
 
 def test_memory_store_acquires_lock(monkeypatch):
     """memory_store() must acquire _memory_lock before writing."""
-    import unittest.mock as mock
     import calc as calc_module
     acquired = []
     original_lock = calc_module._memory_lock
@@ -931,7 +928,6 @@ def test_memory_store_acquires_lock(monkeypatch):
 
 def test_memory_recall_acquires_lock(monkeypatch):
     """memory_recall() must acquire _memory_lock before reading."""
-    import unittest.mock as mock
     import calc as calc_module
     acquired = []
     original_lock = calc_module._memory_lock
@@ -1363,7 +1359,6 @@ def test_save_history_warns_to_stderr_on_oserror(tmp_path, monkeypatch, capsys):
 
 def test_save_history_warns_to_stderr_on_typeerror(tmp_path, monkeypatch, capsys):
     """save_history() must print a Warning to stderr before re-raising TypeError."""
-    import unittest.mock as mock
     monkeypatch.chdir(tmp_path)
 
     class Unserializable:
@@ -1395,7 +1390,6 @@ def test_save_history_reraises_oserror_after_warning(tmp_path, monkeypatch, caps
 
 def test_save_history_reraises_typeerror_after_warning(tmp_path, monkeypatch, capsys):
     """save_history() must still re-raise TypeError after emitting the warning."""
-    import unittest.mock as mock
     monkeypatch.chdir(tmp_path)
 
     class Unserializable:
