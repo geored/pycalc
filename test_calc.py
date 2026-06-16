@@ -872,6 +872,25 @@ def test_save_history_original_preserved_on_json_error(tmp_path, monkeypatch):
     )
 
 
+def test_save_history_no_temp_file_left_behind_on_json_error(tmp_path, monkeypatch):
+    """If json.dump() fails, no .tmp file should remain in the directory."""
+    monkeypatch.chdir(tmp_path)
+
+    class Unserializable:
+        pass
+
+    bad_data = [Unserializable()]
+    try:
+        save_history(bad_data)
+    except (TypeError, Exception):
+        pass  # expected — exception must be re-raised
+
+    leftover_tmp = list(tmp_path.glob("*.tmp"))
+    assert leftover_tmp == [], (
+        f"Orphaned temp file(s) left after failed json.dump(): {leftover_tmp}"
+    )
+
+
 # ---------------------------------------------------------------------------
 # 13. Memory thread-safety — Issue #7 / B4
 # ---------------------------------------------------------------------------
