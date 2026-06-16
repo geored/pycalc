@@ -622,3 +622,120 @@ def test_print_usage_contains_all_required_keywords(capsys):
     captured = capsys.readouterr()
     for keyword in ["history", "clear", "mem store", "mem recall", "mem clear"]:
         assert keyword in captured.out, f"print_usage() output missing keyword: {keyword!r}"
+
+
+# ---------------------------------------------------------------------------
+# 11. mem store edge cases — float, negative, and zero inputs (Issue #4 / B5)
+# ---------------------------------------------------------------------------
+
+def test_mem_store_float_value_in_process(tmp_path, monkeypatch):
+    """mem store with a float argument stores the correct value."""
+    monkeypatch.chdir(tmp_path)
+    parse_args(["calc", "mem", "store", "3.14"])
+    assert memory_recall() == pytest.approx(3.14)
+
+
+def test_mem_store_float_value_cli_exits_zero(tmp_path, monkeypatch):
+    """mem store with a float argument exits with code 0."""
+    monkeypatch.chdir(tmp_path)
+    result = subprocess.run(
+        [sys.executable, "/workspace/calc.py", "mem", "store", "3.14"],
+        capture_output=True, text=True
+    )
+    assert result.returncode == 0
+
+
+def test_mem_store_float_value_cli_prints_stored(tmp_path, monkeypatch):
+    """mem store with a float argument prints confirmation."""
+    monkeypatch.chdir(tmp_path)
+    result = subprocess.run(
+        [sys.executable, "/workspace/calc.py", "mem", "store", "3.14"],
+        capture_output=True, text=True
+    )
+    assert "Stored" in result.stdout
+    assert "Traceback" not in result.stderr
+
+
+def test_mem_store_negative_value_in_process(tmp_path, monkeypatch):
+    """mem store with a negative number stores the correct value."""
+    monkeypatch.chdir(tmp_path)
+    parse_args(["calc", "mem", "store", "-5"])
+    assert memory_recall() == -5.0
+
+
+def test_mem_store_negative_value_cli_exits_zero(tmp_path, monkeypatch):
+    """mem store with a negative number exits with code 0."""
+    monkeypatch.chdir(tmp_path)
+    result = subprocess.run(
+        [sys.executable, "/workspace/calc.py", "mem", "store", "-5"],
+        capture_output=True, text=True
+    )
+    assert result.returncode == 0
+
+
+def test_mem_store_negative_value_cli_prints_stored(tmp_path, monkeypatch):
+    """mem store with a negative number prints confirmation."""
+    monkeypatch.chdir(tmp_path)
+    result = subprocess.run(
+        [sys.executable, "/workspace/calc.py", "mem", "store", "-5"],
+        capture_output=True, text=True
+    )
+    assert "Stored" in result.stdout
+    assert "Traceback" not in result.stderr
+
+
+def test_mem_store_zero_value_in_process(tmp_path, monkeypatch):
+    """mem store with zero stores 0.0 correctly (not confused with falsy check)."""
+    monkeypatch.chdir(tmp_path)
+    memory_store(99)               # pre-load a non-zero value
+    parse_args(["calc", "mem", "store", "0"])
+    assert memory_recall() == 0.0
+
+
+def test_mem_store_zero_value_cli_exits_zero(tmp_path, monkeypatch):
+    """mem store with zero exits with code 0."""
+    monkeypatch.chdir(tmp_path)
+    result = subprocess.run(
+        [sys.executable, "/workspace/calc.py", "mem", "store", "0"],
+        capture_output=True, text=True
+    )
+    assert result.returncode == 0
+
+
+def test_mem_store_zero_value_cli_prints_stored(tmp_path, monkeypatch):
+    """mem store with zero prints confirmation containing the value."""
+    monkeypatch.chdir(tmp_path)
+    result = subprocess.run(
+        [sys.executable, "/workspace/calc.py", "mem", "store", "0"],
+        capture_output=True, text=True
+    )
+    assert "Stored" in result.stdout
+    assert "Traceback" not in result.stderr
+
+
+def test_mem_store_missing_value_message_content(tmp_path, monkeypatch):
+    """Missing value error message specifically mentions 'mem store'."""
+    monkeypatch.chdir(tmp_path)
+    result = subprocess.run(
+        [sys.executable, "/workspace/calc.py", "mem", "store"],
+        capture_output=True, text=True
+    )
+    assert result.returncode != 0
+    combined = result.stdout + result.stderr
+    assert "mem store" in combined
+    assert "IndexError" not in result.stderr
+    assert "Traceback" not in result.stderr
+
+
+def test_mem_store_non_numeric_message_includes_bad_value(tmp_path, monkeypatch):
+    """Non-numeric error message must echo back the bad argument supplied."""
+    monkeypatch.chdir(tmp_path)
+    result = subprocess.run(
+        [sys.executable, "/workspace/calc.py", "mem", "store", "abc"],
+        capture_output=True, text=True
+    )
+    assert result.returncode != 0
+    combined = result.stdout + result.stderr
+    assert "abc" in combined
+    assert "Traceback" not in result.stderr
+    assert "ValueError" not in result.stderr
