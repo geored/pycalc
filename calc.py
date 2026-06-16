@@ -26,10 +26,16 @@ def load_history() -> list[HistoryRecord]:
 
 def save_history(history: list[HistoryRecord]) -> None:
     dir_name = os.path.dirname(os.path.abspath(HISTORY_FILE))
-    with tempfile.NamedTemporaryFile("w", dir=dir_name, delete=False, suffix=".tmp") as tmp:
-        json.dump(history, tmp)
-        tmp_path = tmp.name
-    os.replace(tmp_path, HISTORY_FILE)
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile("w", dir=dir_name, delete=False, suffix=".tmp") as tmp:
+            tmp_path = tmp.name
+            json.dump(history, tmp)
+        os.replace(tmp_path, HISTORY_FILE)
+    except Exception:
+        if tmp_path is not None and os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        raise
 
 def add(a: float, b: float) -> float:
     return a + b
