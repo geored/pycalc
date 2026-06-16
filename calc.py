@@ -53,7 +53,12 @@ def divide(a: float, b: float) -> float:
     return float(a / b)
 
 def power(a: float, b: float) -> float:
-    result = a ** b
+    try:
+        result = a ** b
+    except OverflowError:
+        raise ValueError(
+            f"Result of {a} ** {b} is too large to represent as a finite number"
+        )
     if isinstance(result, complex):
         raise ValueError(
             "Result is a complex number and cannot be displayed "
@@ -198,7 +203,7 @@ def parse_args(args: list[str]) -> float | None:
 
     try:
         result = calculate(op, a, b)
-    except ValueError as e:
+    except (ValueError, OverflowError) as e:
         print(f"Error: {e}")
         sys.exit(1)
 
