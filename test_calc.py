@@ -1696,3 +1696,110 @@ def test_power_negative_base_integer_exponent_still_works():
 def test_power_zero_base_fractional_exponent_still_works():
     """power(0, 0.5) must return 0.0 — zero base with fractional exponent is valid."""
     assert power(0, 0.5) == 0.0
+
+
+# ---------------------------------------------------------------------------
+# 24. Non-finite / oversized results from power() — Issue #60
+#     Covers: mul 0 inf → nan, pow 1e308 2 → inf, pow 2 10000 → huge int
+# ---------------------------------------------------------------------------
+
+def test_mul_zero_inf_exits_nonzero(tmp_path, monkeypatch):
+    """0 * inf = nan; must exit non-zero with a friendly message, no traceback."""
+    monkeypatch.chdir(tmp_path)
+    result = subprocess.run(
+        [sys.executable, "/workspace/calc.py", "mul", "0", "inf"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode != 0
+    assert "Traceback" not in result.stderr
+
+
+def test_mul_zero_inf_friendly_message(tmp_path, monkeypatch):
+    """0 * inf = nan; stdout/stderr must contain an Error: message, not a raw traceback."""
+    monkeypatch.chdir(tmp_path)
+    result = subprocess.run(
+        [sys.executable, "/workspace/calc.py", "mul", "0", "inf"],
+        capture_output=True, text=True,
+    )
+    combined = result.stdout + result.stderr
+    assert "Error" in combined
+    assert "Traceback" not in result.stderr
+
+
+def test_mul_zero_inf_no_history_entry(tmp_path, monkeypatch):
+    """Failed mul (nan result) must NOT write a history entry."""
+    monkeypatch.chdir(tmp_path)
+    save_history([])
+    subprocess.run(
+        [sys.executable, "/workspace/calc.py", "mul", "0", "inf"],
+        capture_output=True, text=True,
+    )
+    assert load_history() == []
+
+
+def test_pow_overflow_exits_nonzero(tmp_path, monkeypatch):
+    """1e308 ** 2 overflows to inf; must exit non-zero with a friendly message, no traceback."""
+    monkeypatch.chdir(tmp_path)
+    result = subprocess.run(
+        [sys.executable, "/workspace/calc.py", "pow", "1e308", "2"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode != 0
+    assert "Traceback" not in result.stderr
+
+
+def test_pow_overflow_friendly_message(tmp_path, monkeypatch):
+    """1e308 ** 2 → friendly Error: message, no traceback."""
+    monkeypatch.chdir(tmp_path)
+    result = subprocess.run(
+        [sys.executable, "/workspace/calc.py", "pow", "1e308", "2"],
+        capture_output=True, text=True,
+    )
+    combined = result.stdout + result.stderr
+    assert "Error" in combined
+    assert "Traceback" not in result.stderr
+
+
+def test_pow_overflow_no_history_entry(tmp_path, monkeypatch):
+    """Failed pow (overflow to inf) must NOT write a history entry."""
+    monkeypatch.chdir(tmp_path)
+    save_history([])
+    subprocess.run(
+        [sys.executable, "/workspace/calc.py", "pow", "1e308", "2"],
+        capture_output=True, text=True,
+    )
+    assert load_history() == []
+
+
+def test_pow_huge_int_overflow_exits_nonzero(tmp_path, monkeypatch):
+    """2 ** 10000 produces a huge Python int; must exit non-zero, no traceback."""
+    monkeypatch.chdir(tmp_path)
+    result = subprocess.run(
+        [sys.executable, "/workspace/calc.py", "pow", "2", "10000"],
+        capture_output=True, text=True,
+    )
+    assert result.returncode != 0
+    assert "Traceback" not in result.stderr
+
+
+def test_pow_huge_int_overflow_friendly_message(tmp_path, monkeypatch):
+    """2 ** 10000 → friendly Error: message, no traceback."""
+    monkeypatch.chdir(tmp_path)
+    result = subprocess.run(
+        [sys.executable, "/workspace/calc.py", "pow", "2", "10000"],
+        capture_output=True, text=True,
+    )
+    combined = result.stdout + result.stderr
+    assert "Error" in combined
+    assert "Traceback" not in result.stderr
+
+
+def test_pow_huge_int_no_history_entry(tmp_path, monkeypatch):
+    """Failed pow (huge int result) must NOT write a history entry."""
+    monkeypatch.chdir(tmp_path)
+    save_history([])
+    subprocess.run(
+        [sys.executable, "/workspace/calc.py", "pow", "2", "10000"],
+        capture_output=True, text=True,
+    )
+    assert load_history() == []
