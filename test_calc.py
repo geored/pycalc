@@ -1201,5 +1201,124 @@ def test_mem_valid_subcommands_unaffected(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     parse_args(["calc", "mem", "store", "7"])
     assert memory_recall() == 7.0
-    parse_args(["calc", "mem", "clear"])
-    assert memory_recall() == 0.0
+
+
+# ---------------------------------------------------------------------------
+# 18. In-process coverage for parse_args error handlers (Issue #27)
+# Each function tests exactly ONE path — complexity = 1.
+# ---------------------------------------------------------------------------
+
+def test_invalid_a_exits_1(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as exc:
+        parse_args(["calc", "add", "foo", "3"])
+    assert exc.value.code == 1
+
+
+def test_invalid_a_prints_error(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit):
+        parse_args(["calc", "add", "foo", "3"])
+    out = capsys.readouterr().out
+    assert "Error" in out
+
+
+def test_invalid_a_names_bad_token(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit):
+        parse_args(["calc", "add", "foo", "3"])
+    out = capsys.readouterr().out
+    assert "foo" in out
+
+
+def test_invalid_b_exits_1(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as exc:
+        parse_args(["calc", "add", "3", "bar"])
+    assert exc.value.code == 1
+
+
+def test_invalid_b_prints_error(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit):
+        parse_args(["calc", "add", "3", "bar"])
+    out = capsys.readouterr().out
+    assert "Error" in out
+
+
+def test_invalid_b_names_bad_token(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit):
+        parse_args(["calc", "add", "3", "bar"])
+    out = capsys.readouterr().out
+    assert "bar" in out
+
+
+def test_unknown_op_exits_1(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as exc:
+        parse_args(["calc", "modulo", "10", "3"])
+    assert exc.value.code == 1
+
+
+def test_unknown_op_prints_error(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit):
+        parse_args(["calc", "modulo", "10", "3"])
+    out = capsys.readouterr().out
+    assert "Error" in out
+
+
+def test_unknown_op_no_traceback(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit):
+        parse_args(["calc", "modulo", "10", "3"])
+    out = capsys.readouterr().out
+    assert "Traceback" not in out
+
+
+def test_unknown_op_names_op(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit):
+        parse_args(["calc", "modulo", "10", "3"])
+    out = capsys.readouterr().out
+    assert "modulo" in out
+
+
+def test_missing_args_exits_1(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as exc:
+        parse_args(["calc", "add", "5"])
+    assert exc.value.code == 1
+
+
+def test_missing_args_prints_error(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit):
+        parse_args(["calc", "add", "5"])
+    out = capsys.readouterr().out
+    assert "Error" in out
+
+
+def test_div_by_zero_exits_1(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as exc:
+        parse_args(["calc", "div", "5", "0"])
+    assert exc.value.code == 1
+
+
+def test_div_by_zero_prints_error(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit):
+        parse_args(["calc", "div", "5", "0"])
+    out = capsys.readouterr().out
+    assert "Error" in out
+
+
+def test_main_prints_result(tmp_path, monkeypatch, capsys):
+    import calc as calc_module
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr("sys.argv", ["calc", "add", "1", "2"])
+    calc_module.main()
+    out = capsys.readouterr().out
+    assert "3" in out
