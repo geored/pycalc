@@ -127,7 +127,11 @@ def parse_args(args: list[str]) -> float | None:
         return None
 
     if cmd == "clear":
-        save_history([])
+        try:
+            save_history([])
+        except (TypeError, OSError) as e:
+            print(f"Error: Could not save history: {e}", file=sys.stderr)
+            sys.exit(1)
         print("History cleared")
         return None
 
@@ -182,12 +186,17 @@ def parse_args(args: list[str]) -> float | None:
         sys.exit(1)
 
     # Save to history -- only reached on successful calculation
-    entry: HistoryRecord = {"op": op, "a": a, "b": b, "result": result}
-    history = load_history()
-    history.append(entry)
-    save_history(history)
-
     print(format_result(result))
+
+    entry: HistoryRecord = {"op": op, "a": a, "b": b, "result": result}
+    try:
+        history = load_history()
+        history.append(entry)
+        save_history(history)
+    except (TypeError, OSError) as e:
+        print(f"Error: Could not save history: {e}", file=sys.stderr)
+        sys.exit(1)
+
     return result
 
 def print_usage() -> None:
