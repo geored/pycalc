@@ -229,5 +229,5 @@ def print_usage() -> None:
 def main() -> None:
     parse_args(sys.argv)
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()
