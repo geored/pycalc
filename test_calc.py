@@ -2,6 +2,8 @@
 import pytest
 import subprocess
 import sys
+import os
+import json
 from calc import (
     add, subtract, multiply, divide, power,
     calculate,
@@ -739,3 +741,103 @@ def test_mem_store_non_numeric_message_includes_bad_value(tmp_path, monkeypatch)
     assert "abc" in combined
     assert "Traceback" not in result.stderr
     assert "ValueError" not in result.stderr
+
+
+# ---------------------------------------------------------------------------
+# 12. Atomic history write — Issue #6 / B9
+# ---------------------------------------------------------------------------
+
+def test_save_history_uses_atomic_replace(tmp_path, monkeypatch):
+    """save_history() must call os.replace() to atomically rename the temp file."""
+    import unittest.mock as mock
+    monkeypatch.chdir(tmp_path)
+    data = [{"op": "add", "a": 1.0, "b": 2.0, "result": 3.0}]
+    replace_calls = []
+    original_replace = os.replace
+
+    def spy_replace(src, dst):
+        replace_calls.append((src, dst))
+        return original_replace(src, dst)
+
+    with mock.patch("os.replace", side_effect=spy_replace):
+        save_history(data)
+
+    assert len(replace_calls) == 1, (
+        "save_history() must call os.replace() exactly once for atomic write; "
+        f"got {len(replace_calls)} call(s)"
+    )
+
+
+def test_save_history_temp_file_in_same_dir(tmp_path, monkeypatch):
+    """The temp file must be created in the same directory as HISTORY_FILE."""
+    import unittest.mock as mock
+    import calc as calc_module
+    monkeypatch.chdir(tmp_path)
+    data = [{"op": "sub", "a": 5.0, "b": 3.0, "result": 2.0}]
+    replace_calls = []
+    original_replace = os.replace
+
+    def spy_replace(src, dst):
+        replace_calls.append((src, dst))
+        return original_replace(src, dst)
+
+    with mock.patch("os.replace", side_effect=spy_replace):
+        save_history(data)
+
+    assert len(replace_calls) == 1
+    tmp_file, target_file = replace_calls[0]
+    # Both paths must share the same parent directory
+    assert os.path.dirname(os.path.abspath(tmp_file)) == os.path.dirname(
+        os.path.abspath(target_file)
+    ), (
+        "Temp file must be in the same directory as HISTORY_FILE so that "
+        "os.replace() is a same-filesystem rename (not a cross-device copy)"
+    )
+
+
+def test_save_history_file_exists_and_valid_json(tmp_path, monkeypatch):
+    """After save_history(), HISTORY_FILE must exist and contain valid JSON."""
+    monkeypatch.chdir(tmp_path)
+    data = [{"op": "mul", "a": 3.0, "b": 4.0, "result": 12.0}]
+    save_history(data)
+    history_path = tmp_path / "calc_history.json"
+    assert history_path.exists(), "HISTORY_FILE was not created by save_history()"
+    content = history_path.read_text()
+    parsed = json.loads(content)
+    assert parsed == data
+
+
+def test_save_history_no_temp_file_left_behind(tmp_path, monkeypatch):
+    """After a successful save_history(), no .tmp file should remain in the dir."""
+    monkeypatch.chdir(tmp_path)
+    data = [{"op": "pow", "a": 2.0, "b": 8.0, "result": 256.0}]
+    save_history(data)
+    leftover_tmp = list(tmp_path.glob("*.tmp"))
+    assert leftover_tmp == [], (
+        f"Leftover temp file(s) found after save_history(): {leftover_tmp}"
+    )
+
+
+def test_save_history_original_preserved_on_json_error(tmp_path, monkeypatch):
+    """If json.dump() fails, the original history file must remain intact."""
+    import unittest.mock as mock
+    monkeypatch.chdir(tmp_path)
+
+    # Seed an existing history file
+    original_data = [{"op": "add", "a": 1.0, "b": 1.0, "result": 2.0}]
+    save_history(original_data)
+
+    # Now attempt a save with data that will fail during json.dump
+    class Unserializable:
+        pass
+
+    bad_data = [Unserializable()]
+    try:
+        save_history(bad_data)
+    except (TypeError, Exception):
+        pass  # expected
+
+    # Original file must still be intact
+    assert load_history() == original_data, (
+        "Original history file was corrupted when json.dump() raised an exception"
+    )
