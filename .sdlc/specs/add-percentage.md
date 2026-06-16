@@ -1,5 +1,5 @@
 # Feature: Add Percentage Operation
-Status: ready
+Status: done
 Priority: high
 
 ## Description
