@@ -1167,3 +1167,39 @@ def test_parse_args_missing_both_operands_exits_nonzero():
 def test_parse_args_missing_one_operand_exits_nonzero():
     result = subprocess.run(["python", "calc.py", "add", "5"], capture_output=True, cwd="/workspace")
     assert result.returncode != 0
+
+
+# ---------------------------------------------------------------------------
+# 17. mem unknown subcommand — Issue #32
+# ---------------------------------------------------------------------------
+
+def test_mem_unknown_subcmd_exits_nonzero_in_process(tmp_path, monkeypatch, capsys):
+    """'mem badsubcmd' must exit with code 1 and print an error message."""
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as exc_info:
+        parse_args(["calc", "mem", "badsubcmd"])
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    assert "Error" in captured.out
+    assert "badsubcmd" in captured.out
+
+
+def test_mem_unknown_subcmd_exits_nonzero_subprocess(tmp_path, monkeypatch):
+    """subprocess: 'calc mem xyzzy 42' exits non-zero with an error message."""
+    monkeypatch.chdir(tmp_path)
+    result = subprocess.run(
+        [sys.executable, "/workspace/calc.py", "mem", "xyzzy", "42"],
+        capture_output=True, text=True
+    )
+    assert result.returncode != 0
+    assert "Error" in result.stdout or "Error" in result.stderr
+    assert "xyzzy" in result.stdout or "xyzzy" in result.stderr
+
+
+def test_mem_valid_subcommands_unaffected(tmp_path, monkeypatch):
+    """store/recall/clear must still work correctly after the fix."""
+    monkeypatch.chdir(tmp_path)
+    parse_args(["calc", "mem", "store", "7"])
+    assert memory_recall() == 7.0
+    parse_args(["calc", "mem", "clear"])
+    assert memory_recall() == 0.0
