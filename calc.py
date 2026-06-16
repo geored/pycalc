@@ -5,20 +5,26 @@ import json
 import os
 import tempfile
 import threading
+from collections.abc import Callable
 
 HISTORY_FILE = "calc_history.json"
 
-def load_history() -> list[dict]:
+# Type alias for a single history record: op is str, a/b/result are float.
+HistoryRecord = dict[str, float | str]
+
+
+def load_history() -> list[HistoryRecord]:
     if os.path.exists(HISTORY_FILE):
         with open(HISTORY_FILE) as f:
             try:
-                return json.load(f)
+                data: list[HistoryRecord] = json.load(f)
+                return data
             except json.JSONDecodeError:
                 print(f"Warning: history file is corrupt; starting fresh.", file=sys.stderr)
                 return []
     return []
 
-def save_history(history: list[dict]) -> None:
+def save_history(history: list[HistoryRecord]) -> None:
     dir_name = os.path.dirname(os.path.abspath(HISTORY_FILE))
     with tempfile.NamedTemporaryFile("w", dir=dir_name, delete=False, suffix=".tmp") as tmp:
         json.dump(history, tmp)
@@ -37,13 +43,13 @@ def multiply(a: float, b: float) -> float:
 def divide(a: float, b: float) -> float:
     if b == 0:
         raise ValueError("Cannot divide by zero")
-    return a / b
+    return float(a / b)
 
 def power(a: float, b: float) -> float:
     return a ** b
 
 def calculate(op: str, a: float, b: float) -> float:
-    ops: dict[str, object] = {
+    ops: dict[str, Callable[[float, float], float]] = {
         "add": add,
         "sub": subtract,
         "mul": multiply,
@@ -53,8 +59,7 @@ def calculate(op: str, a: float, b: float) -> float:
     func = ops.get(op)
     if func is None:
         raise ValueError(f"Unknown operation: {op}")
-    result = func(a, b)  # type: ignore[operator]
-    return result
+    return func(a, b)
 
 def format_result(result: float) -> str:
     # Use :.10g to suppress IEEE 754 floating-point noise while preserving
@@ -150,7 +155,7 @@ def parse_args(args: list[str]) -> float | None:
         sys.exit(1)
 
     # Save to history -- only reached on successful calculation
-    entry: dict[str, object] = {"op": op, "a": a, "b": b, "result": result}
+    entry: HistoryRecord = {"op": op, "a": a, "b": b, "result": result}
     history = load_history()
     history.append(entry)
     save_history(history)
