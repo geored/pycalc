@@ -11,10 +11,10 @@ Add a percentage calculation operation to the calculator. Users should be able t
 - Handle edge case: second number is zero, error message not crash
 
 ## Acceptance Criteria
-- [ ] python calc.py pct 25 200 prints "12.5"
-- [ ] python calc.py pct 50 100 prints "50"
-- [ ] python calc.py pct 10 0 prints an error message and exits non-zero
-- [ ] python calc.py help shows pct in the operations list
-- [ ] Calculation is saved to history
-- [ ] Test exists for percentage calculation
-- [ ] Test exists for percentage with zero denominator
+- [x] python calc.py pct 25 200 prints "12.5"
+- [x] python calc.py pct 50 100 prints "50"
+- [x] python calc.py pct 10 0 prints an error message and exits non-zero
+- [x] python calc.py help shows pct in the operations list
+- [x] Calculation is saved to history
+- [x] Test exists for percentage calculation
+- [x] Test exists for percentage with zero denominator
