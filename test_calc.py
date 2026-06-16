@@ -1266,3 +1266,153 @@ def test_dunder_main_guard(tmp_path, monkeypatch):
     )
     assert result.returncode == 0
     assert "9" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# 19. save_history() error handling in parse_args (Issue #44)
+#     Both the arithmetic path and the clear path must handle OSError / TypeError
+#     from save_history() with a friendly message and sys.exit(1).
+# ---------------------------------------------------------------------------
+
+def test_arithmetic_path_save_history_oserror_exits_nonzero(tmp_path, monkeypatch, capsys):
+    """When save_history() raises OSError on arithmetic path, exit code must be 1."""
+    import unittest.mock as mock
+    import calc as calc_module
+    monkeypatch.chdir(tmp_path)
+
+    with mock.patch.object(calc_module, "save_history", side_effect=OSError("disk full")):
+        with pytest.raises(SystemExit) as exc_info:
+            calc_module.parse_args(["calc", "add", "1", "2"])
+    assert exc_info.value.code == 1
+
+
+def test_arithmetic_path_save_history_oserror_friendly_message(tmp_path, monkeypatch, capsys):
+    """When save_history() raises OSError on arithmetic path, a friendly message is printed to stderr."""
+    import unittest.mock as mock
+    import calc as calc_module
+    monkeypatch.chdir(tmp_path)
+
+    with mock.patch.object(calc_module, "save_history", side_effect=OSError("disk full")):
+        with pytest.raises(SystemExit):
+            calc_module.parse_args(["calc", "add", "1", "2"])
+    captured = capsys.readouterr()
+    combined = captured.out + captured.err
+    assert "Error" in combined, f"Expected 'Error' in output, got: {combined!r}"
+    assert "Traceback" not in captured.err
+    assert "OSError" not in captured.err
+
+
+def test_arithmetic_path_save_history_typeerror_exits_nonzero(tmp_path, monkeypatch, capsys):
+    """When save_history() raises TypeError on arithmetic path, exit code must be 1."""
+    import unittest.mock as mock
+    import calc as calc_module
+    monkeypatch.chdir(tmp_path)
+
+    with mock.patch.object(calc_module, "save_history", side_effect=TypeError("not serializable")):
+        with pytest.raises(SystemExit) as exc_info:
+            calc_module.parse_args(["calc", "mul", "3", "4"])
+    assert exc_info.value.code == 1
+
+
+def test_arithmetic_path_save_history_typeerror_friendly_message(tmp_path, monkeypatch, capsys):
+    """When save_history() raises TypeError on arithmetic path, a friendly message appears."""
+    import unittest.mock as mock
+    import calc as calc_module
+    monkeypatch.chdir(tmp_path)
+
+    with mock.patch.object(calc_module, "save_history", side_effect=TypeError("not serializable")):
+        with pytest.raises(SystemExit):
+            calc_module.parse_args(["calc", "mul", "3", "4"])
+    captured = capsys.readouterr()
+    combined = captured.out + captured.err
+    assert "Error" in combined, f"Expected 'Error' in output, got: {combined!r}"
+    assert "Traceback" not in captured.err
+    assert "TypeError" not in captured.err
+
+
+def test_clear_path_save_history_oserror_exits_nonzero(tmp_path, monkeypatch, capsys):
+    """When save_history() raises OSError on clear path, exit code must be 1."""
+    import unittest.mock as mock
+    import calc as calc_module
+    monkeypatch.chdir(tmp_path)
+
+    with mock.patch.object(calc_module, "save_history", side_effect=OSError("permission denied")):
+        with pytest.raises(SystemExit) as exc_info:
+            calc_module.parse_args(["calc", "clear"])
+    assert exc_info.value.code == 1
+
+
+def test_clear_path_save_history_oserror_friendly_message(tmp_path, monkeypatch, capsys):
+    """When save_history() raises OSError on clear path, a friendly message appears."""
+    import unittest.mock as mock
+    import calc as calc_module
+    monkeypatch.chdir(tmp_path)
+
+    with mock.patch.object(calc_module, "save_history", side_effect=OSError("permission denied")):
+        with pytest.raises(SystemExit):
+            calc_module.parse_args(["calc", "clear"])
+    captured = capsys.readouterr()
+    combined = captured.out + captured.err
+    assert "Error" in combined, f"Expected 'Error' in output, got: {combined!r}"
+    assert "Traceback" not in captured.err
+    assert "OSError" not in captured.err
+
+
+def test_clear_path_save_history_typeerror_exits_nonzero(tmp_path, monkeypatch, capsys):
+    """When save_history() raises TypeError on clear path, exit code must be 1."""
+    import unittest.mock as mock
+    import calc as calc_module
+    monkeypatch.chdir(tmp_path)
+
+    with mock.patch.object(calc_module, "save_history", side_effect=TypeError("bad type")):
+        with pytest.raises(SystemExit) as exc_info:
+            calc_module.parse_args(["calc", "clear"])
+    assert exc_info.value.code == 1
+
+
+def test_clear_path_save_history_typeerror_friendly_message(tmp_path, monkeypatch, capsys):
+    """When save_history() raises TypeError on clear path, a friendly message appears."""
+    import unittest.mock as mock
+    import calc as calc_module
+    monkeypatch.chdir(tmp_path)
+
+    with mock.patch.object(calc_module, "save_history", side_effect=TypeError("bad type")):
+        with pytest.raises(SystemExit):
+            calc_module.parse_args(["calc", "clear"])
+    captured = capsys.readouterr()
+    combined = captured.out + captured.err
+    assert "Error" in combined, f"Expected 'Error' in output, got: {combined!r}"
+    assert "Traceback" not in captured.err
+    assert "TypeError" not in captured.err
+
+
+def test_arithmetic_save_history_error_message_includes_reason(tmp_path, monkeypatch, capsys):
+    """The error message from arithmetic path must include the underlying reason."""
+    import unittest.mock as mock
+    import calc as calc_module
+    monkeypatch.chdir(tmp_path)
+
+    with mock.patch.object(calc_module, "save_history", side_effect=OSError("no space left")):
+        with pytest.raises(SystemExit):
+            calc_module.parse_args(["calc", "add", "2", "3"])
+    captured = capsys.readouterr()
+    combined = captured.out + captured.err
+    assert "no space left" in combined, (
+        f"Error message should include the OSError reason; got: {combined!r}"
+    )
+
+
+def test_clear_save_history_error_message_includes_reason(tmp_path, monkeypatch, capsys):
+    """The error message from clear path must include the underlying reason."""
+    import unittest.mock as mock
+    import calc as calc_module
+    monkeypatch.chdir(tmp_path)
+
+    with mock.patch.object(calc_module, "save_history", side_effect=OSError("read-only filesystem")):
+        with pytest.raises(SystemExit):
+            calc_module.parse_args(["calc", "clear"])
+    captured = capsys.readouterr()
+    combined = captured.out + captured.err
+    assert "read-only filesystem" in combined, (
+        f"Error message should include the OSError reason; got: {combined!r}"
+    )
