@@ -152,6 +152,9 @@ def parse_args(args: list[str]) -> float | None:
         elif subcmd == "clear":
             memory_clear()
             print("Memory cleared")
+        else:
+            print(f"Error: Unknown mem subcommand: '{subcmd}'")
+            sys.exit(1)
         return None
 
     # Main calculation: calc <op> <a> <b>
