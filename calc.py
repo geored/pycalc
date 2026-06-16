@@ -3,6 +3,7 @@
 import sys
 import json
 import os
+import tempfile
 
 HISTORY_FILE = "calc_history.json"
 
@@ -16,9 +17,12 @@ def load_history():
                 return []
     return []
 
-def save_history(history):
-    with open(HISTORY_FILE, "w") as f:
-        json.dump(history, f)
+def save_history(history: list) -> None:
+    dir_name = os.path.dirname(os.path.abspath(HISTORY_FILE))
+    with tempfile.NamedTemporaryFile("w", dir=dir_name, delete=False, suffix=".tmp") as tmp:
+        json.dump(history, tmp)
+        tmp_path = tmp.name
+    os.replace(tmp_path, HISTORY_FILE)
 
 def add(a, b):
     return a + b
