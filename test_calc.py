@@ -1203,3 +1203,66 @@ def test_mem_valid_subcommands_unaffected(tmp_path, monkeypatch):
     assert memory_recall() == 7.0
     parse_args(["calc", "mem", "clear"])
     assert memory_recall() == 0.0
+
+
+# ---------------------------------------------------------------------------
+# 18. parse_args — in-process error-path coverage (Issue #27)
+#     Covers lines 169–182, 210, 213 that subprocess tests cannot reach.
+# ---------------------------------------------------------------------------
+
+def test_parse_args_invalid_a_exits(tmp_path, monkeypatch, capsys):
+    """Non-numeric first operand exits 1 and echoes the bad token (lines 169–171)."""
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as exc:
+        parse_args(["calc", "add", "foo", "3"])
+    assert exc.value.code == 1
+    assert "foo" in capsys.readouterr().out
+
+
+def test_parse_args_invalid_b_exits(tmp_path, monkeypatch, capsys):
+    """Non-numeric second operand exits 1 and echoes the bad token (lines 174–176)."""
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as exc:
+        parse_args(["calc", "add", "3", "bar"])
+    assert exc.value.code == 1
+    assert "bar" in capsys.readouterr().out
+
+
+def test_parse_args_unknown_op_exits(tmp_path, monkeypatch, capsys):
+    """Unknown operator exits 1 and echoes the bad op name (lines 180–182)."""
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as exc:
+        parse_args(["calc", "modulo", "10", "3"])
+    assert exc.value.code == 1
+    assert "modulo" in capsys.readouterr().out
+
+
+def test_parse_args_div_by_zero_exits(tmp_path, monkeypatch, capsys):
+    """Division by zero exits 1 with a friendly error message (lines 180–182)."""
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as exc:
+        parse_args(["calc", "div", "10", "0"])
+    assert exc.value.code == 1
+    assert "Error" in capsys.readouterr().out
+
+
+def test_main_calls_parse_args(tmp_path, monkeypatch, capsys):
+    """main() delegates to parse_args(sys.argv) and prints a result (line 210)."""
+    import calc as calc_module
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(calc_module.sys, "argv", ["calc", "add", "1", "2"])
+    calc_module.main()
+    assert "3" in capsys.readouterr().out
+
+
+def test_dunder_main_guard(tmp_path, monkeypatch):
+    """The if __name__ == '__main__' guard runs main() when the module is the
+    entry point (line 213).  We exercise it by running the file as a script
+    and checking the exit code and output."""
+    import subprocess as sp
+    result = sp.run(
+        [sys.executable, "/workspace/calc.py", "add", "4", "5"],
+        capture_output=True, text=True, cwd=str(tmp_path),
+    )
+    assert result.returncode == 0
+    assert "9" in result.stdout
