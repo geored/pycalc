@@ -53,7 +53,13 @@ def divide(a: float, b: float) -> float:
     return float(a / b)
 
 def power(a: float, b: float) -> float:
-    return a ** b
+    result = a ** b
+    if isinstance(result, complex):
+        raise ValueError(
+            "Result is a complex number and cannot be displayed "
+            "(try a non-negative base)"
+        )
+    return result
 
 
 def percentage(a: float, b: float) -> float:
@@ -197,7 +203,12 @@ def parse_args(args: list[str]) -> float | None:
         sys.exit(1)
 
     # Save to history -- only reached on successful calculation
-    print(format_result(result))
+    try:
+        formatted = format_result(result)
+    except (TypeError, ValueError, OverflowError) as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+    print(formatted)
 
     entry: HistoryRecord = {"op": op, "a": a, "b": b, "result": result}
     try:

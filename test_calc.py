@@ -1610,3 +1610,89 @@ def test_mem_recall_and_clear_not_affected_by_warning(tmp_path, monkeypatch, cap
         assert "session" not in output and "not persisted" not in output, (
             f"'{cmd}' must not print the session-only warning; got: {output!r}"
         )
+
+
+# ---------------------------------------------------------------------------
+# 23. power() with negative base and fractional exponent — Issue #59
+#     power(-1, 0.5) must raise ValueError (not produce a complex result)
+# ---------------------------------------------------------------------------
+
+def test_power_complex_result_raises_value_error():
+    """power(-1, 0.5) must raise ValueError — complex results are not allowed."""
+    with pytest.raises(ValueError, match="[Cc]omplex|non-negative"):
+        power(-1, 0.5)
+
+
+def test_power_negative_base_fractional_exp_raises_value_error():
+    """power(-4, 0.5) must raise ValueError — sqrt of negative is complex."""
+    with pytest.raises(ValueError, match="[Cc]omplex|non-negative"):
+        power(-4, 0.5)
+
+
+def test_calculate_pow_complex_raises_value_error():
+    """calculate('pow', -1, 0.5) must raise ValueError via the dispatch table."""
+    with pytest.raises(ValueError, match="[Cc]omplex|non-negative"):
+        calculate("pow", -1, 0.5)
+
+
+def test_parse_args_pow_complex_exits_1(tmp_path, monkeypatch, capsys):
+    """parse_args(['calc','pow','-1','0.5']) must exit 1 with a friendly Error: message."""
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as exc_info:
+        parse_args(["calc", "pow", "-1", "0.5"])
+    assert exc_info.value.code == 1
+    captured = capsys.readouterr()
+    assert "Error" in captured.out
+    assert "Traceback" not in captured.out
+    assert "TypeError" not in captured.out
+
+
+def test_pow_complex_cli_exits_nonzero(tmp_path, monkeypatch):
+    """subprocess: python calc.py pow -1 0.5 must exit with non-zero status."""
+    monkeypatch.chdir(tmp_path)
+    result = subprocess.run(
+        [sys.executable, "/workspace/calc.py", "pow", "-1", "0.5"],
+        capture_output=True, text=True
+    )
+    assert result.returncode != 0
+
+
+def test_pow_complex_cli_friendly_message(tmp_path, monkeypatch):
+    """subprocess: python calc.py pow -1 0.5 must print friendly Error: message, no traceback."""
+    monkeypatch.chdir(tmp_path)
+    result = subprocess.run(
+        [sys.executable, "/workspace/calc.py", "pow", "-1", "0.5"],
+        capture_output=True, text=True
+    )
+    assert "Error" in result.stdout or "Error" in result.stderr
+    assert "Traceback" not in result.stderr
+    assert "TypeError" not in result.stderr
+
+
+def test_pow_complex_no_history_entry(tmp_path, monkeypatch):
+    """Failed pow (complex result) must NOT write a history entry."""
+    monkeypatch.chdir(tmp_path)
+    save_history([])
+    subprocess.run(
+        [sys.executable, "/workspace/calc.py", "pow", "-1", "0.5"],
+        capture_output=True, text=True
+    )
+    assert load_history() == []
+
+
+def test_pow_valid_cases_still_work(tmp_path, monkeypatch):
+    """Valid pow cases must be unaffected: 2**8, 4**0.5, 2**-1."""
+    monkeypatch.chdir(tmp_path)
+    assert power(2, 8) == 256.0
+    assert power(4, 0.5) == pytest.approx(2.0)
+    assert power(2, -1) == pytest.approx(0.5)
+
+
+def test_power_negative_base_integer_exponent_still_works():
+    """power(-2, 3) must still return -8 — only fractional exponents on negative bases fail."""
+    assert power(-2, 3) == -8.0
+
+
+def test_power_zero_base_fractional_exponent_still_works():
+    """power(0, 0.5) must return 0.0 — zero base with fractional exponent is valid."""
+    assert power(0, 0.5) == 0.0
